@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a73e8">
+  <title>Daily Dashboard</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="vendor/fonts/fonts.css">
+  <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1><i class="fa-solid fa-sun wi-sun" aria-hidden="true"></i> Daily Dashboard</h1>
+      <p id="today-date"></p>
+    </div>
+    <button id="btn-settings" class="icon-btn" aria-label="Impostazioni" title="Impostazioni"><i class="fa-solid fa-gear" aria-hidden="true"></i></button>
+  </header>
+
+  <main>
+    <!-- Riepilogo intelligente -->
+    <section id="smart-summary" class="card summary hidden" aria-live="polite">
+      <div id="summary-content"></div>
+    </section>
+
+    <!-- Meteo -->
+    <section class="card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-cloud-sun wi-cloud" aria-hidden="true"></i> Meteo</h2>
+        <span id="weather-city" class="muted"></span>
+      </div>
+      <div id="weather-current" class="weather-current">
+        <p class="muted">Caricamento meteo…</p>
+      </div>
+      <div id="weather-forecast" class="forecast"></div>
+      <div id="weather-detail" class="weather-detail hidden" aria-live="polite"></div>
+    </section>
+
+    <!-- Agenda -->
+    <section class="card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-list-check" aria-hidden="true"></i> Agenda</h2>
+        <span id="todo-counter" class="muted"></span>
+      </div>
+      <form id="todo-form">
+        <label class="sr-only" for="todo-text">Attività da aggiungere</label>
+        <input type="text" id="todo-text" placeholder="Cosa devi fare?" required maxlength="120">
+        <div class="field">
+          <label for="todo-date">Giorno</label>
+          <input type="date" id="todo-date">
+        </div>
+        <div class="field">
+          <label for="todo-time">Ora</label>
+          <input type="time" id="todo-time">
+        </div>
+        <div class="field">
+          <label for="todo-priority">Priorità</label>
+          <select id="todo-priority">
+            <option value="normale">Normale</option>
+            <option value="alta">Alta</option>
+            <option value="bassa">Bassa</option>
+          </select>
+        </div>
+        <button type="submit">Aggiungi</button>
+      </form>
+      <ul id="todo-list"></ul>
+      <p id="todo-empty" class="muted hidden">Nessuna attività. Aggiungine una! <i class="fa-solid fa-circle-check" aria-hidden="true"></i></p>
+    </section>
+
+    <!-- Lista della spesa -->
+    <section class="card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i> Lista della spesa</h2>
+        <span id="shopping-counter" class="muted"></span>
+      </div>
+      <form id="shopping-form">
+        <label class="sr-only" for="shopping-text">Articolo da comprare</label>
+        <input type="text" id="shopping-text" placeholder="Cosa devi comprare?" required maxlength="80">
+        <button type="submit">Aggiungi</button>
+      </form>
+      <div id="shopping-suggestions" class="suggestions hidden" role="group" aria-label="Articoli comprati spesso">
+        <span class="muted">Compri spesso:</span>
+      </div>
+      <ul id="shopping-list" aria-label="Articoli da comprare"></ul>
+      <p id="shopping-empty" class="muted hidden">Lista vuota. Aggiungi il primo articolo! <i class="fa-solid fa-carrot" aria-hidden="true"></i></p>
+      <button type="button" id="shopping-clear" class="tab hidden">Rimuovi articoli presi</button>
+    </section>
+
+    <!-- Treni -->
+    <section class="card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-train" aria-hidden="true"></i> Treni in tempo reale</h2>
+        <span class="muted">ViaggiaTreno</span>
+      </div>
+      <form id="station-form">
+        <label class="sr-only" for="station-input">Cerca una stazione</label>
+        <input type="text" id="station-input" placeholder="Cerca una stazione (es. Milano Centrale)" maxlength="60" autocomplete="off">
+      </form>
+      <ul id="station-results" class="city-results" aria-label="Stazioni trovate"></ul>
+      <ul id="station-list" aria-label="Stazioni salvate"></ul>
+      <p id="station-empty" class="muted">Salva le tue stazioni abituali per vedere partenze e arrivi live.</p>
+      <div id="board" class="board hidden">
+        <div class="board-header">
+          <strong id="board-title"></strong>
+          <div class="board-tabs" role="group" aria-label="Tipo di tabellone">
+            <button type="button" id="tab-partenze" class="tab active" aria-pressed="true">Partenze</button>
+            <button type="button" id="tab-arrivi" class="tab" aria-pressed="false">Arrivi</button>
+            <button type="button" id="board-refresh" class="tab" aria-label="Aggiorna tabellone"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <div id="board-content" aria-live="polite"></div>
+      </div>
+
+      <hr class="divider">
+
+      <form id="train-form">
+        <label class="sr-only" for="train-number">Numero del treno da seguire</label>
+        <input type="text" id="train-number" inputmode="numeric" placeholder="Segui un treno per numero (es. 9662)" maxlength="6" autocomplete="off">
+        <button type="submit">Segui treno</button>
+      </form>
+      <ul id="train-results" class="city-results" aria-label="Treni trovati"></ul>
+      <div id="train-panel" class="board hidden">
+        <div class="board-header">
+          <div>
+            <strong id="train-title"></strong>
+            <div id="train-subtitle" class="muted"></div>
+          </div>
+          <div class="board-tabs">
+            <button type="button" id="train-refresh" class="tab" aria-label="Aggiorna stato del treno"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+            <button type="button" id="train-close" class="tab" aria-label="Chiudi pannello treno"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <div id="train-content" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Dialog impostazioni -->
+  <dialog id="settings-dialog">
+    <h2>Impostazioni</h2>
+    <form id="settings-form" method="dialog">
+      <label for="city-input">Città per il meteo</label>
+      <div class="row">
+        <input type="text" id="city-input" placeholder="Es. Milano" maxlength="60">
+        <button type="button" id="btn-geolocate" aria-label="Usa la mia posizione" title="Usa la mia posizione"><i class="fa-solid fa-location-dot" aria-hidden="true"></i></button>
+      </div>
+      <ul id="city-results" class="city-results" aria-label="Città trovate"></ul>
+      <div class="dialog-actions">
+        <button type="button" id="btn-close-settings">Chiudi</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer>
+    <p class="muted">Dati meteo: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · Dati treni: ViaggiaTreno (Trenitalia) · I tuoi dati restano sul dispositivo</p>
+    <p class="muted">Progetto didattico senza scopo di lucro · I dati di terze parti restano di proprietà dei rispettivi titolari</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

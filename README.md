@@ -1,0 +1,65 @@
+# Daily Dashboard 🌤️📝🚆
+
+PWA personale con meteo, agenda delle cose da fare e tratte ferroviarie preferite, tutto in un'unica schermata. I dati restano sul dispositivo (localStorage), nessun account richiesto.
+
+> **Progetto didattico, senza scopo di lucro.** Questa app esiste solo per imparare e sperimentare (PWA, API, accessibilità): non è un prodotto commerciale, non viene venduta e non genera alcun guadagno.
+
+## Dati di terze parti
+
+I dati mostrati dall'app provengono da servizi esterni e **restano di proprietà esclusiva dei rispettivi titolari**:
+
+- **Meteo e geocoding** — [Open-Meteo](https://open-meteo.com): i dati appartengono a Open-Meteo e ai suoi fornitori, usati secondo i termini del servizio (gratuito per uso non commerciale).
+- **Treni in tempo reale** — API ViaggiaTreno di **Trenitalia / Gruppo FS Italiane**: orari, ritardi e binari appartengono a Trenitalia. Le API non sono documentate ufficialmente; il server incluso si limita a inoltrarle per la consultazione personale, senza memorizzarle né redistribuirle.
+
+Questo progetto non è affiliato, sponsorizzato o approvato da Trenitalia, Gruppo FS Italiane o Open-Meteo. L'uso delle API è limitato a scopo personale e di studio.
+
+## Avvio in locale
+
+Serve solo Node.js (>= 18, nessuna dipendenza da installare). Il server incluso serve l'app **e** fa da proxy verso le API ViaggiaTreno, che non sono chiamabili direttamente dal browser per il CORS:
+
+```
+node server.js
+```
+
+Poi apri http://localhost:8741 (porta configurabile con la variabile `PORT`).
+
+## Installazione come app sul telefono
+
+1. Pubblica il progetto su un hosting che esegua Node (Render, Railway, Fly.io hanno piani gratuiti) — serve HTTPS per la PWA. GitHub Pages **non** basta: i treni in tempo reale richiedono il server proxy.
+2. Apri il sito dal telefono.
+3. Menu del browser → **"Aggiungi a schermata Home"** / **"Installa app"**.
+
+In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri `http://<ip-del-pc>:8741` dal telefono sulla stessa rete Wi-Fi.
+
+## Funzionalità
+
+- **Meteo** (Open-Meteo, gratuito, senza API key): condizioni attuali + previsioni a 7 giorni, con probabilità di pioggia. Città configurabile da ⚙️ (ricerca o geolocalizzazione). Tocca un giorno per il dettaglio: andamento ora per ora, pioggia attesa (probabilità e mm), vento massimo, indice UV, alba e tramonto.
+- **Agenda**: attività con priorità, giorno **e orario** di scadenza, ordinate automaticamente; le attività in ritardo (anche solo d'orario) sono evidenziate.
+- **Treni in tempo reale** (ViaggiaTreno): cerca una stazione, salvala tra le preferite e consulta il tabellone partenze/arrivi live con ritardi e binari effettivi.
+- **Segui un treno per numero**: percorso completo fermata per fermata, con orario programmato vs effettivo, ritardo a ogni fermata e indicazione dell'ultima posizione rilevata.
+- **Lista della spesa**: spunta gli articoli man mano che li prendi (scendono in fondo), rimuovili tutti insieme con un tap quando hai finito. L'app impara cosa compri più spesso e te lo ripropone come suggerimento con un tap ("Compri spesso: + Latte").
+- **Accessibilità**: etichette visibili o per screen reader su tutti i controlli, navigazione completa da tastiera (risultati di ricerca come pulsanti), `aria-live` sugli aggiornamenti dinamici, contrasti conformi WCAG AA e controlli nativi (date/time picker) leggibili anche in tema scuro grazie a `color-scheme`.
+- **Riepilogo intelligente**: avvisi automatici (pioggia in arrivo, scadenze di oggi, attività in ritardo).
+- **Offline**: il service worker mantiene l'app utilizzabile senza rete, con l'ultimo meteo in cache.
+
+## File
+
+- `index.html` / `style.css` / `app.js` — l'app (vanilla JS, nessuna dipendenza npm)
+- `vendor/fontawesome/` — Font Awesome 6 Free self-hosted (icone), compatibile con la CSP e l'uso offline
+- `vendor/fonts/` — font Plus Jakarta Sans (variable, pesi 200–800) self-hosted da Google Fonts
+- `server.js` — server statico + proxy ViaggiaTreno (`/api/stations`, `/api/board`, `/api/train`, `/api/train-status`)
+- `manifest.json` + `icon.svg` — installabilità PWA
+- `sw.js` — service worker per cache e offline (le chiamate `/api/` non vengono mai messe in cache)
+
+## Sicurezza
+
+- Tutto l'HTML generato da dati esterni o utente passa per l'escape; una **Content-Security-Policy** rigida (`default-src 'self'`, connessioni consentite solo verso Open-Meteo) fa da seconda linea di difesa.
+- Il server valida con regex strette tutti i parametri verso ViaggiaTreno (niente SSRF), blocca i path traversal, resiste alle richieste malformate e non espone dettagli d'errore interni al client.
+- Header `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` e `frame-ancestors 'none'` su tutte le risposte.
+- Nota: il server ascolta su tutta la rete locale (serve per usare l'app dal telefono in Wi-Fi); i dati personali restano comunque solo nel localStorage del browser.
+
+## Idee per il prossimo passo
+
+- Notifiche push per le scadenze
+- Riepilogo mattutino automatico
+- Aggiornamento automatico del tabellone e del treno seguito ogni minuto
