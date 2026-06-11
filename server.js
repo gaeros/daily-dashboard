@@ -30,7 +30,7 @@ const MIME = {
 };
 
 // ViaggiaTreno vuole la data nel formato di Date.prototype.toString()
-const vtDate = () => encodeURIComponent(new Date().toString());
+const vtDate = (d = new Date()) => encodeURIComponent(d.toString());
 
 // ---- Cache breve delle risposte API ----
 // Se più dispositivi guardano la stessa stazione o le stesse notizie,
@@ -40,6 +40,7 @@ const CACHE_TTL = {
   '/api/board': 30_000,
   '/api/train': 30_000,
   '/api/train-status': 30_000,
+  '/api/route': 120_000, // costosa: tabellone + percorso di ogni treno candidato
   '/api/news': 300_000,
 };
 const apiCache = new Map(); // chiave: pathname?query → { body, expires }
@@ -216,6 +217,83 @@ async function handleApi(req, res, url) {
           soppressa: f.actualFermataType === 3,
         })),
       });
+    }
+
+    // GET /api/route?from=S01700&to=S08409 → prossimi treni diretti con ritardo live.
+    // L'endpoint "soluzioni di viaggio" di ViaggiaTreno non esiste più: la tratta
+    // si ricava dal tabellone partenze, controllando nel percorso di ogni treno
+    // che la stazione di arrivo compaia dopo quella di partenza.
+    if (url.pathname === '/api/route') {
+      const from = url.searchParams.get('from') || '';
+      const to = url.searchParams.get('to') || '';
+      const dateParam = url.searchParams.get('date') || '';
+      if (!/^[A-Z]\d{3,6}$/.test(from) || !/^[A-Z]\d{3,6}$/.test(to) || from === to
+        || (dateParam && !/^\d{10,16}$/.test(dateParam))) {
+        return sendJson(res, 400, { error: 'Parametri non validi' });
+      }
+      // Senza date la ricerca parte da adesso.
+      const when = dateParam ? new Date(+dateParam) : new Date();
+      // Nome della stazione di arrivo: serve come ripiego per i treni di un
+      // altro giorno operativo, di cui ViaggiaTreno non espone ancora il
+      // percorso — se il capolinea coincide, basta l'orario programmato.
+      const toName = (url.searchParams.get('toName') || '').trim().toUpperCase().slice(0, 60);
+      const fmt = (ms) => ms
+        ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })
+        : null;
+      const board = JSON.parse(await vtFetch(`${VT_BASE}/partenze/${from}/${vtDate(when)}`));
+      const trainLabel = (t) => t.compNumeroTreno || `${t.categoriaDescrizione || ''} ${t.numeroTreno}`.trim();
+      const terminusMatch = (t) => toName && (t.destinazione || '').trim().toUpperCase() === toName;
+      const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+      const isToday = (ms) => {
+        const d = new Date(ms); d.setHours(0, 0, 0, 0);
+        return d.getTime() === todayMid.getTime();
+      };
+      const sols = [];
+      let lookups = 0;
+      for (const t of board) {
+        if (sols.length >= 3) break;
+        if (!t.numeroTreno || !t.codOrigine || !t.dataPartenzaTreno) continue;
+        // Treno di un altro giorno: niente percorso consultabile, solo capolinea.
+        if (!isToday(t.dataPartenzaTreno)) {
+          if (terminusMatch(t)) {
+            sols.push({
+              treno: trainLabel(t), partenza: t.compOrarioPartenza || null, arrivo: null,
+              ritardo: null, binario: t.binarioProgrammatoPartenzaDescrizione || null,
+              circolante: false, programmato: true,
+            });
+          }
+          continue;
+        }
+        if (++lookups > 10) break; // tetto alle chiamate verso ViaggiaTreno
+        try {
+          const a = JSON.parse(await vtFetch(
+            `${VT_BASE}/andamentoTreno/${t.codOrigine}/${t.numeroTreno}/${t.dataPartenzaTreno}`));
+          const stops = a.fermate || [];
+          if (!stops.length) { // attivazione non ancora avvenuta: vale il capolinea
+            if (terminusMatch(t)) {
+              sols.push({
+                treno: trainLabel(t), partenza: t.compOrarioPartenza || null, arrivo: null,
+                ritardo: null, binario: t.binarioProgrammatoPartenzaDescrizione || null,
+                circolante: false, programmato: true,
+              });
+            }
+            continue;
+          }
+          const iFrom = stops.findIndex((f) => f.id === from);
+          const iTo = stops.findIndex((f) => f.id === to);
+          if (iFrom === -1 || iTo === -1 || iTo <= iFrom) continue;
+          if (stops[iFrom].actualFermataType === 3 || stops[iTo].actualFermataType === 3) continue;
+          sols.push({
+            treno: trainLabel(t),
+            partenza: fmt(stops[iFrom].partenza_teorica),
+            arrivo: fmt(stops[iTo].arrivo_teorico),
+            ritardo: a.ritardo,
+            binario: t.binarioEffettivoPartenzaDescrizione || t.binarioProgrammatoPartenzaDescrizione || null,
+            circolante: t.circolante,
+          });
+        } catch { /* un treno non consultabile non blocca la ricerca degli altri */ }
+      }
+      return sendCachedJson(res, key, ttl, sols);
     }
 
     // GET /api/news?feed=top → [{title, link, date}, …] dal feed RSS ANSA

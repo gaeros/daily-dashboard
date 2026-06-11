@@ -274,7 +274,7 @@ $('#todo-list').addEventListener('click', (e) => {
   if (e.target.matches('input[type="checkbox"]')) {
     const t = todos.find((t) => t.id === id);
     t.done = e.target.checked;
-  } else if (e.target.matches('.del')) {
+  } else if (e.target.closest('.del')) {
     todos = todos.filter((t) => t.id !== id);
   } else return;
   store.set('todos', todos);
@@ -360,7 +360,7 @@ $('#shopping-list').addEventListener('click', (e) => {
     // Lo storico conta ogni articolo una sola volta, e si corregge se togli la spunta.
     if (item.taken && !item.counted) { recordPurchase(item.text, +1); item.counted = true; }
     else if (!item.taken && item.counted) { recordPurchase(item.text, -1); item.counted = false; }
-  } else if (e.target.matches('.del')) {
+  } else if (e.target.closest('.del')) {
     shopping = shopping.filter((s) => s.id !== id);
   } else return;
   store.set('shopping', shopping);
@@ -483,7 +483,7 @@ $('#station-list').addEventListener('click', (e) => {
   const li = e.target.closest('li');
   if (!li) return;
   const code = li.dataset.code;
-  if (e.target.matches('.del')) {
+  if (e.target.closest('.del')) {
     stations = stations.filter((s) => s.code !== code);
     store.set('stations', stations);
     if (board.station?.code === code) {
@@ -692,6 +692,7 @@ function renderSummary() {
 
   $('#smart-summary').classList.toggle('hidden', lines.length === 0);
   $('#summary-content').innerHTML = lines.map((l) => `<span>${l}</span>`).join('');
+  renderMorning();
 }
 
 // ---------- Utility ----------
@@ -704,8 +705,216 @@ function escapeHtml(s) {
   }[ch]));
 }
 
+// ---------- Tratta preferita (es. casa–lavoro) ----------
+let route = store.get('route', null);
+let routeSolutions = null;
+let routeDraft = {};
+// Momento da cui cercare i treni: null = adesso (e si aggiorna da solo).
+let routeWhen = null;
+
+// Autocomplete stazione riusabile: input → risultati → callback con la scelta.
+function stationPicker(inputSel, resultsSel, onPick) {
+  let timer;
+  $(inputSel).addEventListener('input', (e) => {
+    clearTimeout(timer);
+    const q = e.target.value.trim();
+    if (q.length < 2) { $(resultsSel).innerHTML = ''; return; }
+    timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/stations?q=${encodeURIComponent(q)}`);
+        const results = await res.json();
+        $(resultsSel).innerHTML = results.map((s, i) =>
+          `<li><button type="button" class="result" data-i="${i}">${fa('fa-train')} ${escapeHtml(s.name)}</button></li>`).join('')
+          || '<li class="muted">Nessuna stazione trovata</li>';
+        $(resultsSel).querySelectorAll('button[data-i]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            $(resultsSel).innerHTML = '';
+            onPick(results[btn.dataset.i]);
+          });
+        });
+      } catch (err) { console.error('Stazioni:', err); }
+    }, 350);
+  });
+}
+
+$('#route-form').addEventListener('submit', (e) => e.preventDefault());
+stationPicker('#route-from', '#route-from-results', (s) => {
+  routeDraft.from = s;
+  $('#route-from').value = s.name;
+  saveRouteIfComplete();
+});
+stationPicker('#route-to', '#route-to-results', (s) => {
+  routeDraft.to = s;
+  $('#route-to').value = s.name;
+  saveRouteIfComplete();
+});
+
+function saveRouteIfComplete() {
+  // I form restano sempre visibili: chi cambia una sola stazione
+  // completa con l'altra metà della tratta già salvata.
+  const from = routeDraft.from || route?.from;
+  const to = routeDraft.to || route?.to;
+  if (!from || !to) return;
+  if (from.code === to.code) {
+    $('#route-hint').classList.remove('hidden');
+    $('#route-hint').textContent = 'Le due stazioni devono essere diverse.';
+    return;
+  }
+  route = { from, to };
+  store.set('route', route);
+  routeDraft = {};
+  renderRouteUI();
+  loadRoute();
+}
+
+function renderRouteUI() {
+  const has = !!route;
+  if (has) {
+    $('#route-from').value = route.from.name;
+    $('#route-to').value = route.to.name;
+  }
+  $('#route-hint').classList.toggle('hidden', has);
+  $('#route-content').classList.toggle('hidden', !has);
+  ['#route-swap', '#route-refresh'].forEach((sel) =>
+    $(sel).classList.toggle('hidden', !has));
+}
+
+$('#route-when').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const d = $('#route-date').value;
+  const t = $('#route-time').value;
+  if (!d && !t) { routeWhen = null; loadRoute(); return; }
+  const dt = new Date(`${d || toISO(new Date())}T${t || '00:00'}`);
+  if (Number.isNaN(dt.getTime())) return;
+  routeWhen = dt.getTime();
+  loadRoute();
+});
+
+$('#route-now').addEventListener('click', () => {
+  routeWhen = null;
+  $('#route-date').value = '';
+  $('#route-time').value = '';
+  loadRoute();
+});
+
+$('#route-swap').addEventListener('click', () => {
+  route = { from: route.to, to: route.from };
+  store.set('route', route);
+  renderRouteUI();
+  loadRoute();
+});
+$('#route-refresh').addEventListener('click', () => loadRoute());
+
+// silent = aggiornamento automatico, come per tabellone e treno seguito.
+async function loadRoute(silent = false) {
+  if (!route) return;
+  const head = `<strong>${escapeHtml(route.from.name)} → ${escapeHtml(route.to.name)}</strong>`;
+  if (!silent) $('#route-content').innerHTML = `${head}<p class="muted">Cerco i prossimi treni diretti…</p>`;
+  try {
+    const res = await fetch(`/api/route?from=${route.from.code}&to=${route.to.code}`
+      + `&toName=${encodeURIComponent(route.to.name)}`
+      + (routeWhen ? `&date=${routeWhen}` : ''));
+    if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+    routeSolutions = await res.json();
+    renderRoute(routeSolutions);
+    renderMorning();
+  } catch (err) {
+    if (silent) return;
+    $('#route-content').innerHTML =
+      `${head}<p class="muted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Tratta non disponibile: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderRoute(sols) {
+  const head = `<strong>${escapeHtml(route.from.name)} → ${escapeHtml(route.to.name)}</strong>`;
+  if (!sols.length) {
+    const otherDay = routeWhen && toISO(new Date(routeWhen)) !== toISO(new Date());
+    $('#route-content').innerHTML = `${head}<p class="muted">Nessun treno diretto trovato`
+      + `${routeWhen ? ' nel periodo scelto' : ' in partenza a breve'} su questa tratta.`
+      + `${otherDay ? '<br>Nota: per i giorni futuri ViaggiaTreno mostra solo i treni con capolinea nella stazione di arrivo; le fermate intermedie diventano consultabili il giorno stesso.' : ''}</p>`;
+    return;
+  }
+  $('#route-content').innerHTML = `${head}
+  <table class="board-table">
+    <thead><tr><th>Parte</th><th>Arriva</th><th>Treno</th><th>Ritardo</th><th>Bin.</th></tr></thead>
+    <tbody>${sols.map((s) => {
+      const delay = s.programmato
+        ? '<span class="muted">da orario</span>'
+        : s.ritardo > 0
+          ? `<span class="late">+${s.ritardo} min</span>`
+          : (s.circolante ? '<span class="ontime">In orario</span>' : '<span class="muted">—</span>');
+      return `<tr>
+        <td><strong>${escapeHtml(s.partenza || '—')}</strong></td>
+        <td>${escapeHtml(s.arrivo || '—')}</td>
+        <td>${escapeHtml(s.treno)}</td>
+        <td>${delay}</td>
+        <td>${escapeHtml(s.binario || '—')}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>
+  <p class="muted board-updated">Solo treni diretti${routeWhen
+    ? ` dalle ${new Date(routeWhen).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+    : ''} · Aggiornato alle ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</p>`;
+}
+
+// ---------- Riepilogo mattutino ----------
+// Tra le 6 e le 10 l'app dà il buongiorno: meteo di oggi, primo impegno,
+// primo treno della tratta preferita. Chiudibile per il resto della giornata.
+function renderMorning() {
+  const now = new Date();
+  const inWindow = now.getHours() >= 6 && now.getHours() < 10;
+  const dismissed = store.get('morningDismissed', '') === toISO(now);
+  const show = inWindow && !dismissed;
+  $('#morning').classList.toggle('hidden', !show);
+  if (!show) return;
+
+  const lines = [];
+  if (weatherData) {
+    const d = weatherData.daily;
+    const [icon, label] = wc(d.weather_code[0]);
+    const rain = d.precipitation_probability_max[0];
+    lines.push(`${icon} Oggi ${label.toLowerCase()}, ${Math.round(d.temperature_2m_min[0])}°–${Math.round(d.temperature_2m_max[0])}°`
+      + (rain >= 20 ? ` · ${fa('fa-umbrella wi-rain')} pioggia ${rain}%` : ''));
+  }
+  const todayISO = toISO(now);
+  const first = todos
+    .filter((t) => !t.done && t.due === todayISO)
+    .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))[0];
+  lines.push(first
+    ? `${fa('fa-clock')} Primo impegno: «${escapeHtml(first.text)}»${first.time ? ` alle ${first.time}` : ''}`
+    : `${fa('fa-circle-check')} Nessuna scadenza oggi, goditi la giornata!`);
+  if (route && routeSolutions?.length) {
+    const s = routeSolutions[0];
+    const delay = s.ritardo > 0 ? ` <span class="late">(+${s.ritardo} min)</span>` : '';
+    lines.push(`${fa('fa-train')} Prossimo treno per ${escapeHtml(route.to.name)}: ${s.partenza}${delay}`);
+  }
+  $('#morning-content').innerHTML = lines.map((l) => `<span>${l}</span>`).join('');
+}
+
+$('#morning-close').addEventListener('click', () => {
+  store.set('morningDismissed', toISO(new Date()));
+  $('#morning').classList.add('hidden');
+});
+
 // ---------- Notizie (feed RSS ANSA via proxy locale) ----------
 let newsFeed = store.get('newsFeed', 'top');
+let newsCollapsed = store.get('newsCollapsed', false);
+
+function applyNewsCollapsed() {
+  $('#news-body').classList.toggle('hidden', newsCollapsed);
+  const btn = $('#news-toggle');
+  btn.setAttribute('aria-expanded', !newsCollapsed);
+  btn.setAttribute('aria-label', newsCollapsed ? 'Espandi le notizie' : 'Comprimi le notizie');
+  btn.innerHTML = `<i class="fa-solid fa-chevron-${newsCollapsed ? 'down' : 'up'}" aria-hidden="true"></i>`;
+}
+
+$('#news-toggle').addEventListener('click', () => {
+  newsCollapsed = !newsCollapsed;
+  store.set('newsCollapsed', newsCollapsed);
+  applyNewsCollapsed();
+  // Riaprendo, carica se ancora vuoto o rinfresca in silenzio.
+  if (!newsCollapsed) loadNews(!!$('#news-content .news-list'));
+});
 
 document.querySelectorAll('.news-tabs [data-feed]').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -765,8 +974,9 @@ function renderNews(items) {
   <p class="muted board-updated">Aggiornato alle ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</p>`;
 }
 
-// Le notizie si rinfrescano da sole ogni 10 minuti, solo a scheda visibile.
-setInterval(() => { if (!document.hidden) loadNews(true); }, 600_000);
+// Le notizie si rinfrescano da sole ogni 10 minuti, solo a scheda visibile
+// e con il widget aperto.
+setInterval(() => { if (!document.hidden && !newsCollapsed) loadNews(true); }, 600_000);
 
 // ---------- Notifiche per le scadenze ----------
 // Promemoria locali con la Notification API: 15 minuti prima e all'ora della
@@ -855,6 +1065,7 @@ function refreshTrains() {
   if (document.hidden) return;
   if (board.station) loadBoard(true);
   if (currentTrain) loadTrain(true);
+  if (route) loadRoute(true);
 }
 
 setInterval(refreshTrains, REFRESH_MS);
@@ -869,7 +1080,10 @@ if ('serviceWorker' in navigator) {
 renderTodos();
 renderShopping();
 renderStations();
+renderRouteUI();
+if (route) loadRoute();
 updateNotifUI();
 checkDeadlines();
 loadWeather();
-loadNews();
+applyNewsCollapsed();
+if (!newsCollapsed) loadNews();

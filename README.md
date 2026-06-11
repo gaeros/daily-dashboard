@@ -39,10 +39,12 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 - **Promemoria per le scadenze**: attivabili da ⚙️, una notifica 15 minuti prima e una all'ora della scadenza (Notification API). Limite onesto: funzionano solo ad app aperta, anche installata come PWA — senza un server push non è possibile l'invio da remoto.
 - **Treni in tempo reale** (ViaggiaTreno): cerca una stazione, salvala tra le preferite e consulta il tabellone partenze/arrivi live con ritardi e binari effettivi.
 - **Segui un treno per numero**: percorso completo fermata per fermata, con orario programmato vs effettivo, ritardo a ogni fermata e indicazione dell'ultima posizione rilevata.
+- **Tratta preferita** (es. casa–lavoro): salvi partenza e arrivo una volta e vedi subito i prossimi treni **diretti** con orari, ritardo live e binario; un tap inverte la direzione per il ritorno e puoi scegliere giorno e ora da cui far partire la ricerca. (ViaggiaTreno non espone più le "soluzioni di viaggio", quindi la tratta è ricostruita dal tabellone: niente soluzioni con cambio. Per i giorni futuri ViaggiaTreno non pubblica ancora i percorsi: compaiono solo i treni con capolinea nella stazione di arrivo, con orario programmato.)
+- **Riepilogo mattutino**: aprendo l'app tra le 6 e le 10 compare il "Buongiorno" con meteo di oggi, primo impegno in agenda e primo treno della tratta preferita; si può chiudere per il resto della giornata.
 - **Aggiornamento automatico**: tabellone e treno seguito si rinfrescano da soli ogni minuto (solo a scheda visibile, per non sprecare richieste); se il treno seguito accumula ritardo, compare un avviso nel riepilogo intelligente.
 - **Lista della spesa**: spunta gli articoli man mano che li prendi (scendono in fondo), rimuovili tutti insieme con un tap quando hai finito, riordinali trascinandoli dal manico (anche su touch) o con le frecce su/giù da tastiera. L'app impara cosa compri più spesso e te lo ripropone come suggerimento con un tap ("Compri spesso: + Latte").
 - **Accessibilità**: etichette visibili o per screen reader su tutti i controlli, navigazione completa da tastiera (risultati di ricerca come pulsanti), `aria-live` sugli aggiornamenti dinamici, contrasti conformi WCAG AA e controlli nativi (date/time picker) leggibili anche in tema scuro grazie a `color-scheme`.
-- **Ultime notizie** (feed RSS ANSA, via proxy): titoli con categoria a scelta (top, mondo, economia, sport, tecnologia), link all'articolo originale, aggiornamento automatico ogni 10 minuti.
+- **Ultime notizie** (feed RSS ANSA, via proxy): titoli con categoria a scelta (top, mondo, economia, sport, tecnologia), link all'articolo originale, aggiornamento automatico ogni 10 minuti. Il widget è richiudibile e ricorda lo stato (da chiuso non scarica nulla).
 - **Riepilogo intelligente**: avvisi automatici (pioggia in arrivo, scadenze di oggi, attività in ritardo).
 - **Offline**: il service worker mantiene l'app utilizzabile senza rete, con l'ultimo meteo in cache.
 
@@ -51,7 +53,7 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 - `index.html` / `style.css` / `app.js` — l'app (vanilla JS, nessuna dipendenza npm)
 - `vendor/fontawesome/` — Font Awesome 6 Free self-hosted (icone), compatibile con la CSP e l'uso offline
 - `vendor/fonts/` — font Plus Jakarta Sans (variable, pesi 200–800) self-hosted da Google Fonts
-- `server.js` — server statico + proxy ViaggiaTreno e notizie (`/api/stations`, `/api/board`, `/api/train`, `/api/train-status`, `/api/news`)
+- `server.js` — server statico + proxy ViaggiaTreno e notizie (`/api/stations`, `/api/board`, `/api/train`, `/api/train-status`, `/api/route`, `/api/news`)
 - `manifest.json` + `icon.svg` — installabilità PWA
 - `sw.js` — service worker per cache e offline (le chiamate `/api/` non vengono mai messe in cache)
 
@@ -65,5 +67,6 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 
 ## Idee per il prossimo passo
 
-- Riepilogo mattutino automatico
 - Export/import dei dati in JSON dalle impostazioni
+- Notifica quando il treno seguito accumula ritardo
+- Vista calendario settimanale per l'agenda

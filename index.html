@@ -22,6 +22,15 @@
   </header>
 
   <main>
+    <!-- Riepilogo mattutino (visibile dalle 6 alle 10) -->
+    <section id="morning" class="card summary hidden">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-mug-hot wi-sun" aria-hidden="true"></i> Buongiorno!</h2>
+        <button type="button" id="morning-close" class="icon-btn" aria-label="Chiudi il riepilogo mattutino"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+      <div id="morning-content"></div>
+    </section>
+
     <!-- Riepilogo intelligente -->
     <section id="smart-summary" class="card summary hidden" aria-live="polite">
       <div id="summary-content"></div>
@@ -136,23 +145,64 @@
         </div>
         <div id="train-content" aria-live="polite"></div>
       </div>
+
+      <hr class="divider">
+
+      <div class="board-header">
+        <strong><i class="fa-solid fa-route" aria-hidden="true"></i> Tratta preferita</strong>
+        <div class="board-tabs">
+          <button type="button" id="route-swap" class="tab hidden" aria-label="Inverti la direzione della tratta"><i class="fa-solid fa-right-left" aria-hidden="true"></i></button>
+          <button type="button" id="route-refresh" class="tab hidden" aria-label="Aggiorna la tratta"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+        </div>
+      </div>
+      <form id="route-form" autocomplete="off">
+        <div class="field">
+          <label for="route-from">Da</label>
+          <input type="text" id="route-from" placeholder="Stazione di partenza" maxlength="60">
+        </div>
+        <div class="field">
+          <label for="route-to">A</label>
+          <input type="text" id="route-to" placeholder="Stazione di arrivo" maxlength="60">
+        </div>
+      </form>
+      <ul id="route-from-results" class="city-results" aria-label="Stazioni di partenza trovate"></ul>
+      <ul id="route-to-results" class="city-results" aria-label="Stazioni di arrivo trovate"></ul>
+      <p id="route-hint" class="muted">Salva la tratta che fai più spesso (es. casa–lavoro) per vedere subito i prossimi treni diretti con i ritardi.</p>
+      <form id="route-when" class="route-when" autocomplete="off">
+        <div class="field">
+          <label for="route-date">Giorno</label>
+          <input type="date" id="route-date">
+        </div>
+        <div class="field">
+          <label for="route-time">Dalle</label>
+          <input type="time" id="route-time">
+        </div>
+        <button type="submit" class="tab">Cerca</button>
+        <button type="button" id="route-now" class="tab">Adesso</button>
+      </form>
+      <div id="route-content" class="board hidden" aria-live="polite"></div>
     </section>
 
     <!-- Notizie -->
     <section class="card">
       <div class="card-header">
         <h2><i class="fa-solid fa-newspaper wi-news" aria-hidden="true"></i> Ultime notizie</h2>
-        <span class="muted wi-news">ANSA</span>
+        <span class="news-header-side">
+          <span class="muted wi-news">ANSA</span>
+          <button type="button" id="news-toggle" class="icon-btn" aria-expanded="true" aria-controls="news-body" aria-label="Comprimi le notizie"><i class="fa-solid fa-chevron-up" aria-hidden="true"></i></button>
+        </span>
       </div>
-      <div class="board-tabs news-tabs" role="group" aria-label="Categoria delle notizie">
-        <button type="button" class="tab" data-feed="top">Top</button>
-        <button type="button" class="tab" data-feed="mondo">Mondo</button>
-        <button type="button" class="tab" data-feed="economia">Economia</button>
-        <button type="button" class="tab" data-feed="sport">Sport</button>
-        <button type="button" class="tab" data-feed="tecnologia">Tech</button>
-        <button type="button" id="news-refresh" class="tab" aria-label="Aggiorna notizie"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+      <div id="news-body">
+        <div class="board-tabs news-tabs" role="group" aria-label="Categoria delle notizie">
+          <button type="button" class="tab" data-feed="top">Top</button>
+          <button type="button" class="tab" data-feed="mondo">Mondo</button>
+          <button type="button" class="tab" data-feed="economia">Economia</button>
+          <button type="button" class="tab" data-feed="sport">Sport</button>
+          <button type="button" class="tab" data-feed="tecnologia">Tech</button>
+          <button type="button" id="news-refresh" class="tab" aria-label="Aggiorna notizie"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+        </div>
+        <div id="news-content" aria-live="polite"><p class="muted">Caricamento notizie…</p></div>
       </div>
-      <div id="news-content" aria-live="polite"><p class="muted">Caricamento notizie…</p></div>
     </section>
   </main>
 
