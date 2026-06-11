@@ -10,8 +10,9 @@ I dati mostrati dall'app provengono da servizi esterni e **restano di proprietà
 
 - **Meteo e geocoding** — [Open-Meteo](https://open-meteo.com): i dati appartengono a Open-Meteo e ai suoi fornitori, usati secondo i termini del servizio (gratuito per uso non commerciale).
 - **Treni in tempo reale** — API ViaggiaTreno di **Trenitalia / Gruppo FS Italiane**: orari, ritardi e binari appartengono a Trenitalia. Le API non sono documentate ufficialmente; il server incluso si limita a inoltrarle per la consultazione personale, senza memorizzarle né redistribuirle.
+- **Notizie** — feed RSS pubblici dell'**ANSA**: titoli e contenuti appartengono ad ANSA; l'app mostra solo titolo, data e link che rimanda all'articolo originale su ansa.it.
 
-Questo progetto non è affiliato, sponsorizzato o approvato da Trenitalia, Gruppo FS Italiane o Open-Meteo. L'uso delle API è limitato a scopo personale e di studio.
+Questo progetto non è affiliato, sponsorizzato o approvato da Trenitalia, Gruppo FS Italiane, Open-Meteo o ANSA. L'uso delle API e dei feed è limitato a scopo personale e di studio.
 
 ## Avvio in locale
 
@@ -41,6 +42,7 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 - **Aggiornamento automatico**: tabellone e treno seguito si rinfrescano da soli ogni minuto (solo a scheda visibile, per non sprecare richieste); se il treno seguito accumula ritardo, compare un avviso nel riepilogo intelligente.
 - **Lista della spesa**: spunta gli articoli man mano che li prendi (scendono in fondo), rimuovili tutti insieme con un tap quando hai finito, riordinali trascinandoli dal manico (anche su touch) o con le frecce su/giù da tastiera. L'app impara cosa compri più spesso e te lo ripropone come suggerimento con un tap ("Compri spesso: + Latte").
 - **Accessibilità**: etichette visibili o per screen reader su tutti i controlli, navigazione completa da tastiera (risultati di ricerca come pulsanti), `aria-live` sugli aggiornamenti dinamici, contrasti conformi WCAG AA e controlli nativi (date/time picker) leggibili anche in tema scuro grazie a `color-scheme`.
+- **Ultime notizie** (feed RSS ANSA, via proxy): titoli con categoria a scelta (top, mondo, economia, sport, tecnologia), link all'articolo originale, aggiornamento automatico ogni 10 minuti.
 - **Riepilogo intelligente**: avvisi automatici (pioggia in arrivo, scadenze di oggi, attività in ritardo).
 - **Offline**: il service worker mantiene l'app utilizzabile senza rete, con l'ultimo meteo in cache.
 
@@ -49,7 +51,7 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 - `index.html` / `style.css` / `app.js` — l'app (vanilla JS, nessuna dipendenza npm)
 - `vendor/fontawesome/` — Font Awesome 6 Free self-hosted (icone), compatibile con la CSP e l'uso offline
 - `vendor/fonts/` — font Plus Jakarta Sans (variable, pesi 200–800) self-hosted da Google Fonts
-- `server.js` — server statico + proxy ViaggiaTreno (`/api/stations`, `/api/board`, `/api/train`, `/api/train-status`)
+- `server.js` — server statico + proxy ViaggiaTreno e notizie (`/api/stations`, `/api/board`, `/api/train`, `/api/train-status`, `/api/news`)
 - `manifest.json` + `icon.svg` — installabilità PWA
 - `sw.js` — service worker per cache e offline (le chiamate `/api/` non vengono mai messe in cache)
 

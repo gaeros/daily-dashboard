@@ -1,5 +1,5 @@
 // Service worker: cache-first per i file statici, network-first per le API.
-const CACHE = 'daily-dashboard-v15';
+const CACHE = 'daily-dashboard-v19';
 const STATIC_ASSETS = [
   '.', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg',
   'vendor/fontawesome/css/all.min.css',

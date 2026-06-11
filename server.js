@@ -9,6 +9,15 @@ const PORT = process.env.PORT || 8741;
 const ROOT = __dirname;
 const VT_BASE = 'http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno';
 
+// Feed RSS ANSA consentiti: whitelist chiusa, il client sceglie solo la chiave.
+const NEWS_FEEDS = {
+  top: 'https://www.ansa.it/sito/notizie/topnews/topnews_rss.xml',
+  mondo: 'https://www.ansa.it/sito/notizie/mondo/mondo_rss.xml',
+  economia: 'https://www.ansa.it/sito/notizie/economia/economia_rss.xml',
+  sport: 'https://www.ansa.it/sito/notizie/sport/sport_rss.xml',
+  tecnologia: 'https://www.ansa.it/sito/notizie/tecnologia/tecnologia_rss.xml',
+};
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -27,6 +36,31 @@ async function vtFetch(url) {
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`ViaggiaTreno HTTP ${res.status}`);
   return res.text();
+}
+
+// Estrae le voci da un feed RSS senza dipendenze: bastano title, link e data.
+function rssItems(xml, max = 10) {
+  const decode = (s) => s
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&') // per ultimo, per non decodificare due volte
+    .trim();
+  const tag = (item, name) => {
+    const m = item.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, 'i'));
+    return m ? decode(m[1]) : '';
+  };
+  // La descrizione può contenere markup: via i tag, e tronca a misura di sommario.
+  const strip = (s) => s.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  return [...xml.matchAll(/<item[\s>]([\s\S]*?)<\/item>/gi)]
+    .map((m) => ({
+      title: tag(m[1], 'title'),
+      link: tag(m[1], 'link'),
+      date: tag(m[1], 'pubDate'),
+      desc: strip(tag(m[1], 'description')).slice(0, 220),
+    }))
+    .filter((i) => i.title && /^https:\/\//.test(i.link))
+    .slice(0, max);
 }
 
 // Header di sicurezza su ogni risposta; la CSP rende inerte un eventuale
@@ -124,6 +158,18 @@ async function handleApi(req, res, url) {
           soppressa: f.actualFermataType === 3,
         })),
       });
+    }
+
+    // GET /api/news?feed=top → [{title, link, date}, …] dal feed RSS ANSA
+    if (url.pathname === '/api/news') {
+      const feed = NEWS_FEEDS[url.searchParams.get('feed')] || NEWS_FEEDS.top;
+      try {
+        const xml = await vtFetch(feed);
+        return sendJson(res, 200, rssItems(xml));
+      } catch (err) {
+        console.error('[api] /api/news:', err.message);
+        return sendJson(res, 502, { error: 'Notizie non disponibili' });
+      }
     }
 
     sendJson(res, 404, { error: 'Endpoint non trovato' });

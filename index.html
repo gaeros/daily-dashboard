@@ -137,6 +137,23 @@
         <div id="train-content" aria-live="polite"></div>
       </div>
     </section>
+
+    <!-- Notizie -->
+    <section class="card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-newspaper wi-news" aria-hidden="true"></i> Ultime notizie</h2>
+        <span class="muted wi-news">ANSA</span>
+      </div>
+      <div class="board-tabs news-tabs" role="group" aria-label="Categoria delle notizie">
+        <button type="button" class="tab" data-feed="top">Top</button>
+        <button type="button" class="tab" data-feed="mondo">Mondo</button>
+        <button type="button" class="tab" data-feed="economia">Economia</button>
+        <button type="button" class="tab" data-feed="sport">Sport</button>
+        <button type="button" class="tab" data-feed="tecnologia">Tech</button>
+        <button type="button" id="news-refresh" class="tab" aria-label="Aggiorna notizie"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+      </div>
+      <div id="news-content" aria-live="polite"><p class="muted">Caricamento notizie…</p></div>
+    </section>
   </main>
 
   <!-- Dialog impostazioni -->
@@ -160,7 +177,7 @@
   </dialog>
 
   <footer>
-    <p class="muted">Dati meteo: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · Dati treni: ViaggiaTreno (Trenitalia) · I tuoi dati restano sul dispositivo</p>
+    <p class="muted">Dati meteo: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · Dati treni: ViaggiaTreno (Trenitalia) · Notizie: <a href="https://www.ansa.it" target="_blank" rel="noopener">ANSA</a> · I tuoi dati restano sul dispositivo</p>
     <p class="muted">Progetto didattico senza scopo di lucro · I dati di terze parti restano di proprietà dei rispettivi titolari</p>
   </footer>
 

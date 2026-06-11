@@ -704,6 +704,70 @@ function escapeHtml(s) {
   }[ch]));
 }
 
+// ---------- Notizie (feed RSS ANSA via proxy locale) ----------
+let newsFeed = store.get('newsFeed', 'top');
+
+document.querySelectorAll('.news-tabs [data-feed]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    newsFeed = btn.dataset.feed;
+    store.set('newsFeed', newsFeed);
+    loadNews();
+  });
+});
+$('#news-refresh').addEventListener('click', () => loadNews());
+
+// "2 h fa", "35 min fa", oppure la data se è roba di ieri o prima.
+function timeAgo(d) {
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  if (!Number.isFinite(mins) || mins < 0) return '';
+  if (mins < 1) return 'adesso';
+  if (mins < 60) return `${mins} min fa`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return `${h} h fa`;
+  return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+}
+
+// silent = aggiornamento automatico, come per i treni.
+async function loadNews(silent = false) {
+  document.querySelectorAll('.news-tabs [data-feed]').forEach((btn) => {
+    const active = btn.dataset.feed === newsFeed;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active);
+  });
+  if (!silent) $('#news-content').innerHTML = '<p class="muted">Caricamento notizie…</p>';
+  try {
+    const res = await fetch(`/api/news?feed=${newsFeed}`);
+    if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+    renderNews(await res.json());
+  } catch (err) {
+    if (silent) return;
+    $('#news-content').innerHTML =
+      '<p class="muted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Notizie non disponibili (sei offline?). Riprova più tardi.</p>';
+    console.error('Notizie:', err);
+  }
+}
+
+function renderNews(items) {
+  if (!items.length) {
+    $('#news-content').innerHTML = '<p class="muted">Nessuna notizia nel feed.</p>';
+    return;
+  }
+  $('#news-content').innerHTML = `<ul class="news-list">${items.map((n) => {
+    const when = n.date ? timeAgo(new Date(n.date)) : '';
+    return `<li>
+      <a href="${escapeHtml(n.link)}" target="_blank" rel="noopener">
+        <span class="news-title">${escapeHtml(n.title)}</span>
+        ${n.desc ? `<span class="news-desc">${escapeHtml(n.desc)}</span>` : ''}
+        ${when ? `<span class="news-meta">${fa('fa-clock')} ${when}</span>` : ''}
+      </a>
+    </li>`;
+  }).join('')}</ul>
+  <p class="muted board-updated">Aggiornato alle ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</p>`;
+}
+
+// Le notizie si rinfrescano da sole ogni 10 minuti, solo a scheda visibile.
+setInterval(() => { if (!document.hidden) loadNews(true); }, 600_000);
+
 // ---------- Notifiche per le scadenze ----------
 // Promemoria locali con la Notification API: 15 minuti prima e all'ora della
 // scadenza. Funzionano finché l'app è aperta (anche installata come PWA);
@@ -808,3 +872,4 @@ renderStations();
 updateNotifUI();
 checkDeadlines();
 loadWeather();
+loadNews();
