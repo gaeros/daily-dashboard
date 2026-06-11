@@ -442,9 +442,11 @@ function openBoard(station) {
 
 $('#tab-partenze').addEventListener('click', () => { board.type = 'partenze'; loadBoard(); });
 $('#tab-arrivi').addEventListener('click', () => { board.type = 'arrivi'; loadBoard(); });
-$('#board-refresh').addEventListener('click', loadBoard);
+$('#board-refresh').addEventListener('click', () => loadBoard());
 
-async function loadBoard() {
+// silent = aggiornamento automatico: niente "Caricamento…" e, se la rete
+// fallisce, il tabellone precedente resta visibile.
+async function loadBoard(silent = false) {
   if (!board.station) return;
   $('#board').classList.remove('hidden');
   $('#board-title').textContent = board.station.name;
@@ -452,13 +454,14 @@ async function loadBoard() {
   $('#tab-arrivi').classList.toggle('active', board.type === 'arrivi');
   $('#tab-partenze').setAttribute('aria-pressed', board.type === 'partenze');
   $('#tab-arrivi').setAttribute('aria-pressed', board.type === 'arrivi');
-  $('#board-content').innerHTML = '<p class="muted">Caricamento tabellone…</p>';
+  if (!silent) $('#board-content').innerHTML = '<p class="muted">Caricamento tabellone…</p>';
   try {
     const res = await fetch(`/api/board?station=${board.station.code}&type=${board.type}`);
     if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
     const trains = await res.json();
     renderBoard(trains);
   } catch (err) {
+    if (silent) return;
     $('#board-content').innerHTML =
       `<p class="muted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Tabellone non disponibile: ${escapeHtml(err.message)}</p>`;
   }
@@ -494,6 +497,8 @@ function renderBoard(trains) {
 
 // ---------- Segui un treno per numero ----------
 let currentTrain = null;
+// Ultimo stato noto del treno seguito, per l'avviso ritardo nel riepilogo.
+let trainStatus = null;
 
 $('#train-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -536,30 +541,38 @@ function openTrain(match) {
   loadTrain();
 }
 
-$('#train-refresh').addEventListener('click', loadTrain);
+$('#train-refresh').addEventListener('click', () => loadTrain());
 $('#train-close').addEventListener('click', () => {
   currentTrain = null;
+  trainStatus = null;
   $('#train-panel').classList.add('hidden');
+  renderSummary();
 });
 
-async function loadTrain() {
+// silent = aggiornamento automatico: niente "Caricamento…" e, se la rete
+// fallisce, il percorso precedente resta visibile.
+async function loadTrain(silent = false) {
   if (!currentTrain) return;
   $('#train-panel').classList.remove('hidden');
-  $('#train-title').textContent = currentTrain.label;
-  $('#train-subtitle').textContent = '';
-  $('#train-content').innerHTML = '<p class="muted">Caricamento percorso…</p>';
+  if (!silent) {
+    $('#train-title').textContent = currentTrain.label;
+    $('#train-subtitle').textContent = '';
+    $('#train-content').innerHTML = '<p class="muted">Caricamento percorso…</p>';
+  }
   try {
     const res = await fetch(`/api/train-status?origin=${currentTrain.originCode}` +
       `&number=${currentTrain.number}&date=${currentTrain.departureMs}`);
     if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
     renderTrain(await res.json());
   } catch (err) {
+    if (silent) return;
     $('#train-content').innerHTML =
       `<p class="muted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Stato del treno non disponibile: ${escapeHtml(err.message)}</p>`;
   }
 }
 
 function renderTrain(t) {
+  trainStatus = { treno: t.treno, destinazione: t.destinazione, ritardo: t.ritardo };
   $('#train-title').textContent = `${t.treno} · ${t.origine} → ${t.destinazione}`;
   const delayBadge = t.ritardo > 0
     ? `<span class="late">in ritardo di ${t.ritardo} min</span>`
@@ -585,6 +598,7 @@ function renderTrain(t) {
     </li>`;
   }).join('')}</ol>
   <p class="muted board-updated">Aggiornato alle ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</p>`;
+  renderSummary();
 }
 
 // ---------- Riepilogo intelligente ----------
@@ -605,6 +619,15 @@ function renderSummary() {
   const overdue = todos.filter((t) => isOverdue(t, todayISO)).length;
   if (overdue) lines.push(`<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ${overdue} attività in ritardo`);
 
+  // Stato del treno seguito, sempre visibile finché il pannello è aperto.
+  if (trainStatus) {
+    const r = trainStatus.ritardo;
+    const state = r > 0 ? `<span class="late">viaggia con ${r} min di ritardo</span>`
+      : r < 0 ? `<span class="ontime">viaggia in anticipo di ${-r} min</span>`
+      : '<span class="ontime">è in orario</span>';
+    lines.push(`${fa('fa-train')} Il treno ${escapeHtml(trainStatus.treno)} per ${escapeHtml(trainStatus.destinazione)} ${state}`);
+  }
+
   $('#smart-summary').classList.toggle('hidden', lines.length === 0);
   $('#summary-content').innerHTML = lines.map((l) => `<span>${l}</span>`).join('');
 }
@@ -619,6 +642,98 @@ function escapeHtml(s) {
   }[ch]));
 }
 
+// ---------- Notifiche per le scadenze ----------
+// Promemoria locali con la Notification API: 15 minuti prima e all'ora della
+// scadenza. Funzionano finché l'app è aperta (anche installata come PWA);
+// senza un server push non è possibile l'invio da remoto.
+let notifyEnabled = store.get('notifyEnabled', false);
+// Notifiche già mostrate, per non ripeterle: { "<id>-pre"|"<id>-due": timestamp }
+let notified = store.get('notified', {});
+
+function updateNotifUI() {
+  const btn = $('#btn-notifications');
+  const status = $('#notif-status');
+  if (!('Notification' in window)) {
+    btn.disabled = true;
+    status.textContent = 'Notifiche non supportate da questo browser.';
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    btn.disabled = true;
+    status.textContent = 'Notifiche bloccate: riattivale dalle impostazioni del browser.';
+    return;
+  }
+  const active = notifyEnabled && Notification.permission === 'granted';
+  btn.textContent = active ? 'Disattiva notifiche' : 'Attiva notifiche';
+  btn.setAttribute('aria-pressed', active);
+  status.textContent = active
+    ? "Riceverai un promemoria 15 minuti prima e all'ora della scadenza, ad app aperta."
+    : 'Promemoria disattivati.';
+}
+
+$('#btn-notifications').addEventListener('click', async () => {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    notifyEnabled = (await Notification.requestPermission()) === 'granted';
+  } else if (Notification.permission === 'granted') {
+    notifyEnabled = !notifyEnabled;
+  }
+  store.set('notifyEnabled', notifyEnabled);
+  updateNotifUI();
+  if (notifyEnabled) checkDeadlines();
+});
+
+async function showDeadlineNotification(title, body, tag) {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification(title, { body, tag, icon: 'icon.svg' });
+  } catch (err) { console.warn('Notifica:', err); }
+}
+
+function checkDeadlines() {
+  if (!notifyEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = new Date();
+  const todayISO = toISO(now);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+
+  // Dimentica le notifiche di attività eliminate o completate.
+  const activeIds = new Set(todos.filter((t) => !t.done).map((t) => t.id));
+  Object.keys(notified).forEach((k) => {
+    if (!activeIds.has(+k.split('-')[0])) delete notified[k];
+  });
+
+  todos.filter((t) => !t.done && t.due === todayISO && t.time).forEach((t) => {
+    const [h, m] = t.time.split(':').map(Number);
+    const diff = h * 60 + m - nowMins;
+    if (diff > 0 && diff <= 15 && !notified[`${t.id}-pre`]) {
+      notified[`${t.id}-pre`] = Date.now();
+      showDeadlineNotification(`Scadenza tra ${diff} min`, `${t.text} (ore ${t.time})`, `todo-${t.id}-pre`);
+    } else if (diff <= 0 && diff > -60 && !notified[`${t.id}-due`]) {
+      // Oltre un'ora dopo la scadenza la notifica non parte più: a quel punto
+      // ci pensa già il riepilogo "in ritardo".
+      notified[`${t.id}-due`] = Date.now();
+      showDeadlineNotification('Scade ora', `${t.text} (ore ${t.time})`, `todo-${t.id}-due`);
+    }
+  });
+  store.set('notified', notified);
+}
+
+setInterval(checkDeadlines, 30_000);
+
+// ---------- Auto-refresh treni ----------
+// Tabellone e treno seguito si aggiornano da soli ogni minuto, ma solo con la
+// scheda in primo piano; al ritorno dal background l'aggiornamento è immediato.
+const REFRESH_MS = 60_000;
+
+function refreshTrains() {
+  if (document.hidden) return;
+  if (board.station) loadBoard(true);
+  if (currentTrain) loadTrain(true);
+}
+
+setInterval(refreshTrains, REFRESH_MS);
+document.addEventListener('visibilitychange', refreshTrains);
+
 // ---------- Service worker ----------
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch((err) => console.warn('SW:', err));
@@ -628,4 +743,6 @@ if ('serviceWorker' in navigator) {
 renderTodos();
 renderShopping();
 renderStations();
+updateNotifUI();
+checkDeadlines();
 loadWeather();

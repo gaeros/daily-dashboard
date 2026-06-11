@@ -35,8 +35,10 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 
 - **Meteo** (Open-Meteo, gratuito, senza API key): condizioni attuali + previsioni a 7 giorni, con probabilità di pioggia. Città configurabile da ⚙️ (ricerca o geolocalizzazione). Tocca un giorno per il dettaglio: andamento ora per ora, pioggia attesa (probabilità e mm), vento massimo, indice UV, alba e tramonto.
 - **Agenda**: attività con priorità, giorno **e orario** di scadenza, ordinate automaticamente; le attività in ritardo (anche solo d'orario) sono evidenziate.
+- **Promemoria per le scadenze**: attivabili da ⚙️, una notifica 15 minuti prima e una all'ora della scadenza (Notification API). Limite onesto: funzionano solo ad app aperta, anche installata come PWA — senza un server push non è possibile l'invio da remoto.
 - **Treni in tempo reale** (ViaggiaTreno): cerca una stazione, salvala tra le preferite e consulta il tabellone partenze/arrivi live con ritardi e binari effettivi.
 - **Segui un treno per numero**: percorso completo fermata per fermata, con orario programmato vs effettivo, ritardo a ogni fermata e indicazione dell'ultima posizione rilevata.
+- **Aggiornamento automatico**: tabellone e treno seguito si rinfrescano da soli ogni minuto (solo a scheda visibile, per non sprecare richieste); se il treno seguito accumula ritardo, compare un avviso nel riepilogo intelligente.
 - **Lista della spesa**: spunta gli articoli man mano che li prendi (scendono in fondo), rimuovili tutti insieme con un tap quando hai finito. L'app impara cosa compri più spesso e te lo ripropone come suggerimento con un tap ("Compri spesso: + Latte").
 - **Accessibilità**: etichette visibili o per screen reader su tutti i controlli, navigazione completa da tastiera (risultati di ricerca come pulsanti), `aria-live` sugli aggiornamenti dinamici, contrasti conformi WCAG AA e controlli nativi (date/time picker) leggibili anche in tema scuro grazie a `color-scheme`.
 - **Riepilogo intelligente**: avvisi automatici (pioggia in arrivo, scadenze di oggi, attività in ritardo).
@@ -60,6 +62,5 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 
 ## Idee per il prossimo passo
 
-- Notifiche push per le scadenze
 - Riepilogo mattutino automatico
-- Aggiornamento automatico del tabellone e del treno seguito ogni minuto
+- Export/import dei dati in JSON dalle impostazioni

@@ -1,5 +1,5 @@
 // Service worker: cache-first per i file statici, network-first per le API.
-const CACHE = 'daily-dashboard-v11';
+const CACHE = 'daily-dashboard-v14';
 const STATIC_ASSETS = [
   '.', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg',
   'vendor/fontawesome/css/all.min.css',
@@ -21,6 +21,15 @@ self.addEventListener('activate', (e) => {
       Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))),
   );
   self.clients.claim();
+});
+
+// Un tap su una notifica porta in primo piano l'app (o la apre).
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) =>
+      wins.length ? wins[0].focus() : clients.openWindow('.')),
+  );
 });
 
 self.addEventListener('fetch', (e) => {
