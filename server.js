@@ -32,6 +32,51 @@ const MIME = {
 // ViaggiaTreno vuole la data nel formato di Date.prototype.toString()
 const vtDate = () => encodeURIComponent(new Date().toString());
 
+// ---- Cache breve delle risposte API ----
+// Se più dispositivi guardano la stessa stazione o le stesse notizie,
+// una sola richiesta raggiunge il servizio a monte.
+const CACHE_TTL = {
+  '/api/stations': 3600_000, // l'elenco stazioni non cambia
+  '/api/board': 30_000,
+  '/api/train': 30_000,
+  '/api/train-status': 30_000,
+  '/api/news': 300_000,
+};
+const apiCache = new Map(); // chiave: pathname?query → { body, expires }
+
+function cacheGet(key) {
+  const hit = apiCache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.body;
+  apiCache.delete(key);
+  return null;
+}
+
+function cacheSet(key, ttl, body) {
+  if (apiCache.size > 500) { // niente crescita illimitata
+    for (const [k, v] of apiCache) if (v.expires <= Date.now()) apiCache.delete(k);
+    if (apiCache.size > 500) apiCache.clear();
+  }
+  apiCache.set(key, { body, expires: Date.now() + ttl });
+}
+
+// ---- Rate limit elementare per IP ----
+// Protegge i servizi a monte se l'URL diventa raggiungibile da Internet.
+const RATE_LIMIT = 60; // richieste /api/ al minuto per IP
+const rateHits = new Map(); // ip → { count, windowStart }
+
+function rateLimited(ip) {
+  const now = Date.now();
+  if (rateHits.size > 1000) {
+    for (const [k, v] of rateHits) if (now - v.windowStart > 60_000) rateHits.delete(k);
+  }
+  const h = rateHits.get(ip);
+  if (!h || now - h.windowStart > 60_000) {
+    rateHits.set(ip, { count: 1, windowStart: now });
+    return false;
+  }
+  return ++h.count > RATE_LIMIT;
+}
+
 async function vtFetch(url) {
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`ViaggiaTreno HTTP ${res.status}`);
@@ -73,15 +118,28 @@ const CSP = "default-src 'self'; " +
   "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; " +
   "img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
-function sendJson(res, status, body) {
+function sendJson(res, status, body, extra = {}) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     ...SECURITY_HEADERS,
+    ...extra,
   });
   res.end(typeof body === 'string' ? body : JSON.stringify(body));
 }
 
+// Risposta riuscita di un endpoint con cache: salva e spedisci.
+function sendCachedJson(res, key, ttl, body) {
+  cacheSet(key, ttl, JSON.stringify(body));
+  sendJson(res, 200, body, { 'X-Cache': 'miss' });
+}
+
 async function handleApi(req, res, url) {
+  const ttl = CACHE_TTL[url.pathname];
+  const key = `${url.pathname}?${url.searchParams}`;
+  if (ttl) {
+    const cached = cacheGet(key);
+    if (cached) return sendJson(res, 200, cached, { 'X-Cache': 'hit' });
+  }
   try {
     // GET /api/stations?q=milano → [{name, code}, …]
     if (url.pathname === '/api/stations') {
@@ -92,7 +150,7 @@ async function handleApi(req, res, url) {
         const [name, code] = line.split('|');
         return { name, code };
       });
-      return sendJson(res, 200, stations);
+      return sendCachedJson(res, key, ttl, stations);
     }
 
     // GET /api/board?station=S01700&type=partenze|arrivi → tabellone live
@@ -112,7 +170,7 @@ async function handleApi(req, res, url) {
           ? t.binarioEffettivoPartenzaDescrizione : t.binarioEffettivoArrivoDescrizione,
         circolante: t.circolante,
       }));
-      return sendJson(res, 200, trains);
+      return sendCachedJson(res, key, ttl, trains);
     }
 
     // GET /api/train?q=9662 → possibili treni con quel numero
@@ -125,7 +183,7 @@ async function handleApi(req, res, url) {
         const [number, originCode, departureMs] = (payload || '').split('-');
         return { label: (label || '').trim(), number, originCode, departureMs: +departureMs };
       }).filter((m) => m.originCode);
-      return sendJson(res, 200, matches);
+      return sendCachedJson(res, key, ttl, matches);
     }
 
     // GET /api/train-status?origin=S09218&number=9662&date=1781042400000 → percorso fermata per fermata
@@ -140,7 +198,7 @@ async function handleApi(req, res, url) {
       const fmt = (ms) => ms
         ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })
         : null;
-      return sendJson(res, 200, {
+      return sendCachedJson(res, key, ttl, {
         treno: (j.compNumeroTreno || '').trim() || `Treno ${number}`,
         origine: j.origine,
         destinazione: j.destinazione,
@@ -165,7 +223,7 @@ async function handleApi(req, res, url) {
       const feed = NEWS_FEEDS[url.searchParams.get('feed')] || NEWS_FEEDS.top;
       try {
         const xml = await vtFetch(feed);
-        return sendJson(res, 200, rssItems(xml));
+        return sendCachedJson(res, key, ttl, rssItems(xml));
       } catch (err) {
         console.error('[api] /api/news:', err.message);
         return sendJson(res, 502, { error: 'Notizie non disponibili' });
@@ -203,7 +261,13 @@ http.createServer((req, res) => {
   // Una richiesta malformata (es. percent-encoding non valido) non deve abbattere il server.
   try {
     const url = new URL(req.url, `http://localhost:${PORT}`);
-    if (url.pathname.startsWith('/api/')) return handleApi(req, res, url);
+    if (url.pathname.startsWith('/api/')) {
+      // Dietro un reverse proxy (es. Render) l'IP vero è in X-Forwarded-For.
+      const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+        || req.socket.remoteAddress || '';
+      if (rateLimited(ip)) return sendJson(res, 429, { error: 'Troppe richieste, riprova tra un minuto' });
+      return handleApi(req, res, url);
+    }
     serveStatic(req, res, url);
   } catch {
     res.writeHead(400, SECURITY_HEADERS);

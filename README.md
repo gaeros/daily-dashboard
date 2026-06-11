@@ -26,7 +26,7 @@ Poi apri http://localhost:8741 (porta configurabile con la variabile `PORT`).
 
 ## Installazione come app sul telefono
 
-1. Pubblica il progetto su un hosting che esegua Node (Render, Railway, Fly.io hanno piani gratuiti) — serve HTTPS per la PWA. GitHub Pages **non** basta: i treni in tempo reale richiedono il server proxy.
+1. Pubblica il progetto su un hosting che esegua Node (Render, Railway, Fly.io hanno piani gratuiti) — serve HTTPS per la PWA. GitHub Pages **non** basta: i treni in tempo reale richiedono il server proxy. Il repo include `package.json` con lo script `start`, quindi su Render basta collegare il repository: rileva Node da solo e avvia `npm start`.
 2. Apri il sito dal telefono.
 3. Menu del browser → **"Aggiungi a schermata Home"** / **"Installa app"**.
 
@@ -59,6 +59,7 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 
 - Tutto l'HTML generato da dati esterni o utente passa per l'escape; una **Content-Security-Policy** rigida (`default-src 'self'`, connessioni consentite solo verso Open-Meteo) fa da seconda linea di difesa.
 - Il server valida con regex strette tutti i parametri verso ViaggiaTreno (niente SSRF), blocca i path traversal, resiste alle richieste malformate e non espone dettagli d'errore interni al client.
+- **Rate limit** di 60 richieste API al minuto per IP e **cache breve** delle risposte (30 s per i treni, 5 min per le notizie): se l'app è esposta su Internet, i servizi a monte non vengono mai martellati.
 - Header `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` e `frame-ancestors 'none'` su tutte le risposte.
 - Nota: il server ascolta su tutta la rete locale (serve per usare l'app dal telefono in Wi-Fi); i dati personali restano comunque solo nel localStorage del browser.
 

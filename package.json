@@ -1,0 +1,12 @@
+{
+  "name": "daily-dashboard",
+  "version": "1.0.0",
+  "description": "PWA personale con meteo, agenda, lista della spesa, treni in tempo reale e notizie. Progetto didattico senza scopo di lucro.",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
