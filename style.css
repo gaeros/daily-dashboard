@@ -230,6 +230,19 @@ li .del {
   padding: 2px 6px;
   font-size: 1rem;
 }
+/* Manico per riordinare la lista della spesa */
+li .handle {
+  background: transparent;
+  color: var(--muted);
+  padding: 2px 4px;
+  font-size: 1rem;
+  cursor: grab;
+  touch-action: none; /* il trascinamento non deve scrollare la pagina su touch */
+}
+li.dragging {
+  opacity: .75;
+  outline: 2px dashed var(--accent);
+}
 li.overdue .meta { color: var(--danger); font-weight: 600; }
 li a { color: var(--accent); text-decoration: none; font-size: .85rem; white-space: nowrap; }
 li a:hover { text-decoration: underline; }

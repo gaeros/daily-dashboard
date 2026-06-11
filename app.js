@@ -331,10 +331,12 @@ $('#shopping-form').addEventListener('submit', (e) => {
 });
 
 function renderShopping() {
-  // Gli articoli già presi scendono in fondo alla lista.
+  // Gli articoli già presi scendono in fondo alla lista; l'ordine manuale
+  // (trascinamento o frecce) è l'ordine dell'array, che il sort stabile conserva.
   const sorted = [...shopping].sort((a, b) => a.taken - b.taken);
   $('#shopping-list').innerHTML = sorted.map((s) => `
     <li class="${s.taken ? 'done' : ''}" data-id="${s.id}">
+      ${s.taken ? '' : `<button type="button" class="handle" aria-label="Riordina: ${escapeHtml(s.text)}. Trascina, o usa le frecce su e giù"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button>`}
       <input type="checkbox" ${s.taken ? 'checked' : ''} aria-label="Segna come preso: ${escapeHtml(s.text)}">
       <div class="grow">${escapeHtml(s.text)}</div>
       <button class="del" aria-label="Elimina: ${escapeHtml(s.text)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
@@ -369,6 +371,66 @@ $('#shopping-clear').addEventListener('click', () => {
   shopping = shopping.filter((s) => !s.taken);
   store.set('shopping', shopping);
   renderShopping();
+});
+
+// --- Riordino della lista della spesa ---
+// Dal "manico" si trascina (Pointer Events: funziona anche su touch) oppure,
+// da tastiera, si sposta l'articolo con le frecce su e giù.
+
+// Salva l'ordine visivo corrente come ordine dell'array.
+function applyShoppingOrder() {
+  const order = [...$('#shopping-list').querySelectorAll('li')].map((li) => +li.dataset.id);
+  shopping.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  store.set('shopping', shopping);
+  renderShopping();
+}
+
+let dragging = null;
+
+$('#shopping-list').addEventListener('pointerdown', (e) => {
+  const handle = e.target.closest('.handle');
+  if (!handle) return;
+  e.preventDefault();
+  dragging = handle.closest('li');
+  dragging.classList.add('dragging');
+  handle.setPointerCapture(e.pointerId);
+});
+
+$('#shopping-list').addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  // L'elemento trascinato si inserisce prima del primo articolo non preso
+  // il cui centro è sotto il puntatore.
+  const list = $('#shopping-list');
+  const target = [...list.querySelectorAll('li:not(.dragging):not(.done)')]
+    .find((li) => e.clientY < li.getBoundingClientRect().top + li.offsetHeight / 2);
+  if (target) list.insertBefore(dragging, target);
+  else {
+    const firstDone = list.querySelector('li.done');
+    firstDone ? list.insertBefore(dragging, firstDone) : list.appendChild(dragging);
+  }
+});
+
+const endDrag = () => {
+  if (!dragging) return;
+  dragging.classList.remove('dragging');
+  dragging = null;
+  applyShoppingOrder();
+};
+$('#shopping-list').addEventListener('pointerup', endDrag);
+$('#shopping-list').addEventListener('pointercancel', endDrag);
+
+$('#shopping-list').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  const handle = e.target.closest('.handle');
+  if (!handle) return;
+  e.preventDefault();
+  const li = handle.closest('li');
+  const sibling = e.key === 'ArrowUp' ? li.previousElementSibling : li.nextElementSibling;
+  if (!sibling || sibling.classList.contains('done')) return;
+  li.parentNode.insertBefore(li, e.key === 'ArrowUp' ? sibling : sibling.nextElementSibling);
+  applyShoppingOrder();
+  // Il render ricrea gli elementi: il focus torna sul manico dell'articolo spostato.
+  $(`#shopping-list li[data-id="${li.dataset.id}"] .handle`)?.focus();
 });
 
 // ---------- Treni in tempo reale (ViaggiaTreno via proxy locale) ----------
