@@ -74,6 +74,16 @@
             <option value="bassa">Bassa</option>
           </select>
         </div>
+        <div class="field">
+          <label for="todo-repeat">Ripeti</label>
+          <select id="todo-repeat">
+            <option value="none">Mai</option>
+            <option value="daily">Ogni giorno</option>
+            <option value="weekdays">Lun–Ven</option>
+            <option value="weekly">Ogni settimana</option>
+            <option value="monthly">Ogni mese</option>
+          </select>
+        </div>
         <button type="submit">Aggiungi</button>
       </form>
       <ul id="todo-list"></ul>
@@ -220,6 +230,14 @@
       <label for="btn-notifications">Promemoria per le scadenze</label>
       <button type="button" id="btn-notifications" aria-pressed="false">Attiva notifiche</button>
       <p id="notif-status" class="muted" aria-live="polite"></p>
+      <hr class="divider">
+      <label>Backup dei dati</label>
+      <div class="row">
+        <button type="button" id="btn-export"><i class="fa-solid fa-download" aria-hidden="true"></i> Esporta</button>
+        <button type="button" id="btn-import"><i class="fa-solid fa-upload" aria-hidden="true"></i> Importa</button>
+      </div>
+      <input type="file" id="import-file" accept="application/json,.json" class="hidden">
+      <p id="backup-status" class="muted" aria-live="polite">Salva o ripristina agenda, spesa, stazioni e tratta in un file JSON.</p>
       <div class="dialog-actions">
         <button type="button" id="btn-close-settings">Chiudi</button>
       </div>

@@ -213,20 +213,43 @@ function setCity(newCity) {
 // ---------- Agenda ----------
 let todos = store.get('todos', []);
 
+const REPEAT_LABELS = {
+  daily: 'ogni giorno', weekdays: 'Lun–Ven', weekly: 'ogni settimana', monthly: 'ogni mese',
+};
+
 $('#todo-form').addEventListener('submit', (e) => {
   e.preventDefault();
+  const repeat = $('#todo-repeat').value;
+  // Una ricorrenza ha bisogno di un giorno di partenza: se manca, parte da oggi.
+  const due = $('#todo-date').value || (repeat !== 'none' ? toISO(today) : null);
   todos.push({
     id: Date.now(),
     text: $('#todo-text').value.trim(),
-    due: $('#todo-date').value || null,
+    due,
     time: $('#todo-time').value || null,
     priority: $('#todo-priority').value,
+    repeat,
     done: false,
   });
   store.set('todos', todos);
   e.target.reset();
   renderTodos();
 });
+
+// Prossima data utile per un'attività ricorrente, mai nel passato.
+function nextOccurrence(dateISO, repeat) {
+  const d = new Date((dateISO || toISO(today)) + 'T12:00');
+  const step = () => {
+    if (repeat === 'weekly') d.setDate(d.getDate() + 7);
+    else if (repeat === 'monthly') d.setMonth(d.getMonth() + 1);
+    else if (repeat === 'weekdays') { do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6); }
+    else d.setDate(d.getDate() + 1); // daily
+  };
+  step();
+  let guard = 0;
+  while (toISO(d) < toISO(today) && guard++ < 500) step();
+  return toISO(d);
+}
 
 // Una scadenza è passata se la data è prima di oggi, oppure è oggi e l'ora è già trascorsa.
 function isOverdue(t, todayISO) {
@@ -250,12 +273,14 @@ function renderTodos() {
       ? (t.due === todayISO ? 'Oggi' : new Date(t.due + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }))
       : '';
     if (t.time) dueLabel += `${dueLabel ? ' · ' : ''}ore ${t.time}`;
+    const rep = t.repeat && t.repeat !== 'none'
+      ? ` · ${fa('fa-repeat')} ${REPEAT_LABELS[t.repeat] || ''}` : '';
     const prio = t.priority === 'alta' ? `<i class="fa-solid fa-flag prio-alta" aria-hidden="true" title="Priorità alta"></i>`
       : t.priority === 'bassa' ? `<i class="fa-solid fa-flag prio-bassa" aria-hidden="true" title="Priorità bassa"></i>` : '';
     return `<li class="${t.done ? 'done' : ''} ${overdue ? 'overdue' : ''}" data-id="${t.id}">
-      <input type="checkbox" ${t.done ? 'checked' : ''} aria-label="Segna come completata: ${escapeHtml(t.text)}">
+      <input type="checkbox" ${t.done ? 'checked' : ''} aria-label="${t.repeat && t.repeat !== 'none' ? 'Completa questa occorrenza di' : 'Segna come completata'}: ${escapeHtml(t.text)}">
       <div class="grow">${prio} ${escapeHtml(t.text)}
-        ${dueLabel ? `<div class="meta">${fa('fa-calendar-days')} ${dueLabel}${overdue ? ' · in ritardo!' : ''}</div>` : ''}
+        ${dueLabel || rep ? `<div class="meta">${fa('fa-calendar-days')} ${dueLabel}${rep}${overdue ? ' · in ritardo!' : ''}</div>` : ''}
       </div>
       <button class="del" aria-label="Elimina: ${escapeHtml(t.text)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
     </li>`;
@@ -273,7 +298,16 @@ $('#todo-list').addEventListener('click', (e) => {
   const id = +li.dataset.id;
   if (e.target.matches('input[type="checkbox"]')) {
     const t = todos.find((t) => t.id === id);
-    t.done = e.target.checked;
+    if (e.target.checked && t.repeat && t.repeat !== 'none') {
+      // Completare un'attività ricorrente non la archivia: la sposta al ciclo dopo.
+      t.due = nextOccurrence(t.due, t.repeat);
+      t.done = false;
+      delete notified[`${t.id}-pre`];
+      delete notified[`${t.id}-due`];
+      store.set('notified', notified);
+    } else {
+      t.done = e.target.checked;
+    }
   } else if (e.target.closest('.del')) {
     todos = todos.filter((t) => t.id !== id);
   } else return;
@@ -561,6 +595,8 @@ function renderBoard(trains) {
 let currentTrain = null;
 // Ultimo stato noto del treno seguito, per l'avviso ritardo nel riepilogo.
 let trainStatus = null;
+// Ritardo (min) per cui ho già notificato il treno seguito: evita di ripetere.
+let trainDelayNotified = 0;
 
 $('#train-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -599,6 +635,7 @@ $('#train-form').addEventListener('submit', async (e) => {
 
 function openTrain(match) {
   currentTrain = match;
+  trainDelayNotified = 0;
   $('#train-number').value = '';
   loadTrain();
 }
@@ -635,6 +672,7 @@ async function loadTrain(silent = false) {
 
 function renderTrain(t) {
   trainStatus = { treno: t.treno, destinazione: t.destinazione, ritardo: t.ritardo };
+  maybeNotifyTrainDelay(t);
   $('#train-title').textContent = `${t.treno} · ${t.origine} → ${t.destinazione}`;
   const delayBadge = t.ritardo > 0
     ? `<span class="late">in ritardo di ${t.ritardo} min</span>`
@@ -661,6 +699,20 @@ function renderTrain(t) {
   }).join('')}</ol>
   <p class="muted board-updated">Aggiornato alle ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</p>`;
   renderSummary();
+}
+
+// Notifica quando il treno seguito accumula ritardo: la prima volta che supera
+// i 5 minuti, poi di nuovo solo se cresce di altri 5 (niente raffica a ogni refresh).
+function maybeNotifyTrainDelay(t) {
+  if (!notifyEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const r = t.ritardo || 0;
+  if (r >= 5 && r >= trainDelayNotified + 5) {
+    trainDelayNotified = r;
+    showAppNotification(`${t.treno} in ritardo`,
+      `${r} min · ${t.origine} → ${t.destinazione}`, 'train-delay');
+  } else if (r < 5) {
+    trainDelayNotified = 0; // rientrato: pronto a riavvisare se torna in ritardo
+  }
 }
 
 // ---------- Riepilogo intelligente ----------
@@ -1003,7 +1055,7 @@ function updateNotifUI() {
   btn.textContent = active ? 'Disattiva notifiche' : 'Attiva notifiche';
   btn.setAttribute('aria-pressed', active);
   status.textContent = active
-    ? "Riceverai un promemoria 15 minuti prima e all'ora della scadenza, ad app aperta."
+    ? 'Riceverai un promemoria prima delle scadenze e se il treno seguito è in ritardo, ad app aperta.'
     : 'Promemoria disattivati.';
 }
 
@@ -1019,7 +1071,7 @@ $('#btn-notifications').addEventListener('click', async () => {
   if (notifyEnabled) checkDeadlines();
 });
 
-async function showDeadlineNotification(title, body, tag) {
+async function showAppNotification(title, body, tag) {
   try {
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification(title, { body, tag, icon: 'icon.svg' });
@@ -1043,18 +1095,70 @@ function checkDeadlines() {
     const diff = h * 60 + m - nowMins;
     if (diff > 0 && diff <= 15 && !notified[`${t.id}-pre`]) {
       notified[`${t.id}-pre`] = Date.now();
-      showDeadlineNotification(`Scadenza tra ${diff} min`, `${t.text} (ore ${t.time})`, `todo-${t.id}-pre`);
+      showAppNotification(`Scadenza tra ${diff} min`, `${t.text} (ore ${t.time})`, `todo-${t.id}-pre`);
     } else if (diff <= 0 && diff > -60 && !notified[`${t.id}-due`]) {
       // Oltre un'ora dopo la scadenza la notifica non parte più: a quel punto
       // ci pensa già il riepilogo "in ritardo".
       notified[`${t.id}-due`] = Date.now();
-      showDeadlineNotification('Scade ora', `${t.text} (ore ${t.time})`, `todo-${t.id}-due`);
+      showAppNotification('Scade ora', `${t.text} (ore ${t.time})`, `todo-${t.id}-due`);
     }
   });
   store.set('notified', notified);
 }
 
 setInterval(checkDeadlines, 30_000);
+
+// ---------- Backup: export / import dei dati ----------
+// Tutto vive nel localStorage: questo è l'unico modo per non perderlo cambiando
+// dispositivo o pulendo il browser. Si esportano i dati, non lo stato volatile.
+const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'route', 'city', 'newsFeed', 'newsCollapsed', 'notifyEnabled'];
+
+$('#btn-export').addEventListener('click', () => {
+  const data = { app: 'daily-dashboard', version: 1, exported: new Date().toISOString() };
+  EXPORT_KEYS.forEach((k) => {
+    const v = localStorage.getItem(k);
+    if (v !== null) { try { data[k] = JSON.parse(v); } catch { /* salta valori corrotti */ } }
+  });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `daily-dashboard-${toISO(new Date())}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  $('#backup-status').textContent = 'Dati esportati nel file scaricato.';
+});
+
+$('#btn-import').addEventListener('click', () => $('#import-file').click());
+
+$('#import-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(reader.result); } catch { data = null; }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      $('#backup-status').textContent = 'File non valido: non è un backup della dashboard.';
+      e.target.value = '';
+      return;
+    }
+    const keys = EXPORT_KEYS.filter((k) => k in data);
+    if (!keys.length) {
+      $('#backup-status').textContent = 'Nessun dato riconosciuto in questo file.';
+      e.target.value = '';
+      return;
+    }
+    if (!confirm(`Importare ${keys.length} sezioni? I dati attuali verranno sostituiti.`)) {
+      e.target.value = '';
+      return;
+    }
+    keys.forEach((k) => localStorage.setItem(k, JSON.stringify(data[k])));
+    $('#backup-status').textContent = 'Importato! Ricarico l’app…';
+    setTimeout(() => location.reload(), 700);
+  };
+  reader.readAsText(file);
+});
 
 // ---------- Auto-refresh treni ----------
 // Tabellone e treno seguito si aggiornano da soli ogni minuto, ma solo con la

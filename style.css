@@ -278,6 +278,7 @@ dialog h2 { margin-top: 0; }
 dialog form { display: grid; }
 .row { display: flex; gap: 8px; }
 .row input { flex: 1; }
+.row button { flex: 1; }
 
 /* Etichette visibili sopra data / ora / priorità */
 .field { display: flex; flex-direction: column; gap: 2px; }
