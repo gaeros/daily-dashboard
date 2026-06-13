@@ -43,6 +43,7 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 - **Riepilogo mattutino**: aprendo l'app tra le 6 e le 10 compare il "Buongiorno" con meteo di oggi, primo impegno in agenda e primo treno della tratta preferita; si può chiudere per il resto della giornata.
 - **Aggiornamento automatico**: tabellone e treno seguito si rinfrescano da soli ogni minuto (solo a scheda visibile, per non sprecare richieste); se il treno seguito accumula ritardo, compare un avviso nel riepilogo intelligente.
 - **Lista della spesa**: spunta gli articoli man mano che li prendi (scendono in fondo), rimuovili tutti insieme con un tap quando hai finito, riordinali trascinandoli dal manico (anche su touch) o con le frecce su/giù da tastiera. L'app impara cosa compri più spesso e te lo ripropone come suggerimento con un tap ("Compri spesso: + Latte").
+- **Interfaccia compatta**: meteo, agenda e form occupano poco spazio verticale; tutti i pulsanti hanno la stessa dimensione e i campi di partenza/arrivo della tratta restano sempre visibili per cambiarla al volo.
 - **Accessibilità**: etichette visibili o per screen reader su tutti i controlli, navigazione completa da tastiera (risultati di ricerca come pulsanti), `aria-live` sugli aggiornamenti dinamici, contrasti conformi WCAG AA e controlli nativi (date/time picker) leggibili anche in tema scuro grazie a `color-scheme`.
 - **Ultime notizie** (feed RSS ANSA, via proxy): titoli con categoria a scelta (top, mondo, economia, sport, tecnologia), link all'articolo originale, aggiornamento automatico ogni 10 minuti. Il widget è richiudibile e ricorda lo stato (da chiuso non scarica nulla).
 - **Riepilogo intelligente**: avvisi automatici (pioggia in arrivo, scadenze di oggi, attività in ritardo).
@@ -59,9 +60,9 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 
 ## Sicurezza
 
-- Tutto l'HTML generato da dati esterni o utente passa per l'escape; una **Content-Security-Policy** rigida (`default-src 'self'`, connessioni consentite solo verso Open-Meteo) fa da seconda linea di difesa.
-- Il server valida con regex strette tutti i parametri verso ViaggiaTreno (niente SSRF), blocca i path traversal, resiste alle richieste malformate e non espone dettagli d'errore interni al client.
-- **Rate limit** di 60 richieste API al minuto per IP e **cache breve** delle risposte (30 s per i treni, 5 min per le notizie): se l'app è esposta su Internet, i servizi a monte non vengono mai martellati.
+- Tutto l'HTML generato da dati esterni o utente passa per l'escape; una **Content-Security-Policy** rigida (`default-src 'self'`, connessioni consentite solo verso Open-Meteo; treni e notizie passano dal proxy locale) fa da seconda linea di difesa.
+- Il server valida con regex strette tutti i parametri verso ViaggiaTreno (niente SSRF), i feed notizie sono una whitelist chiusa, blocca i path traversal, resiste alle richieste malformate e non espone dettagli d'errore interni al client.
+- **Rate limit** di 60 richieste API al minuto per IP e **cache breve** delle risposte (30 s per i treni, 2 min per la tratta, 5 min per le notizie): se l'app è esposta su Internet, i servizi a monte non vengono mai martellati.
 - Header `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` e `frame-ancestors 'none'` su tutte le risposte.
 - Nota: il server ascolta su tutta la rete locale (serve per usare l'app dal telefono in Wi-Fi); i dati personali restano comunque solo nel localStorage del browser.
 
