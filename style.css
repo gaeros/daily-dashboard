@@ -124,36 +124,36 @@ main {
 .weather-current {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 8px;
 }
-.weather-current .temp { font-size: 1.9rem; font-weight: 650; letter-spacing: -.03em; }
-.weather-current .icon { font-size: 2.1rem; }
-.weather-current .details { font-size: .78rem; color: var(--muted); }
+.weather-current .temp { font-size: 1.55rem; font-weight: 650; letter-spacing: -.03em; }
+.weather-current .icon { font-size: 1.7rem; }
+.weather-current .details { font-size: .72rem; color: var(--muted); }
 
 .forecast {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(66px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+  gap: 5px;
 }
 .forecast .day {
   display: block;
   width: 100%;
   text-align: center;
-  padding: 6px 3px;
-  border-radius: 10px;
+  padding: 5px 2px;
+  border-radius: 8px;
   background: var(--bg);
   border: 2px solid transparent;
   color: var(--text);
   font-weight: 400;
-  font-size: .74rem;
+  font-size: .68rem;
   cursor: pointer;
 }
 .forecast .day:hover { border-color: var(--accent); filter: none; }
 .forecast .day.selected { border-color: var(--accent); background: var(--accent-soft); }
-.forecast .day .d-icon { font-size: 1.15rem; display: block; margin: 2px 0; }
+.forecast .day .d-icon { font-size: .98rem; display: block; margin: 1px 0; }
 .forecast .day .d-name { font-weight: 600; text-transform: capitalize; display: block; }
-.d-rain { color: var(--accent); font-size: .68rem; display: block; }
+.d-rain { color: var(--accent); font-size: .62rem; display: block; }
 
 /* Dettaglio del giorno selezionato */
 .weather-detail {
@@ -442,7 +442,14 @@ li.active-station { outline: 2px solid var(--accent); }
   font-size: .85rem;
   padding: 6px 8px;
 }
-#todo-form input[type="text"] { font-size: .95rem; }
+/* "Cosa devi fare?" compatto: non si stira all'altezza dei campi con etichetta */
+#todo-form input[type="text"] {
+  font-size: .85rem;
+  padding: 6px 10px;
+  height: 35px;
+  align-self: flex-end;
+  flex: 1 1 140px;
+}
 
 /* Tratta preferita: campi compatti, affiancati */
 #route-form { margin-bottom: 8px; }
