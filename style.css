@@ -412,6 +412,30 @@ li.active-station { outline: 2px solid var(--accent); }
 .board-table .ontime { color: var(--green); font-weight: 600; }
 .board-updated { margin: 6px 0 0; }
 
+/* Agenda: intestazione con contatore + tab vista */
+.todo-head-side { display: flex; align-items: center; gap: 10px; }
+
+/* Vista calendario settimanale */
+.todo-week { display: grid; gap: 8px; }
+.week-day {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.week-day.today { outline: 2px solid var(--accent); }
+.week-day-head {
+  font-weight: 600;
+  font-size: .8rem;
+  text-transform: capitalize;
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+.week-day.today .week-day-head { color: var(--accent); }
+.week-day ul { gap: 4px; }
+.week-day li { padding: 6px 8px; background: var(--card); }
+.week-empty { margin: 2px 0 0; font-size: .85rem; }
+.week-note { margin: 4px 0 0; }
+
 /* Agenda: campi data/ora/priorità compatti */
 #todo-form .field input,
 #todo-form .field select {
@@ -439,9 +463,26 @@ li.active-station { outline: 2px solid var(--accent); }
 }
 .route-when .tab { padding: 6px 14px; font-size: .9rem; }
 
+/* Un blocco per ogni tratta salvata */
+.route-item {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-top: 8px;
+}
+.route-item .board-header { margin-bottom: 6px; }
+
 /* Notizie: niente riquadri, voci separate da righe sottili come un quotidiano.
    Il verde è il colore della sezione: icona, tab attiva e titoli. */
 .wi-news { color: var(--green); }
+/* Treni: il rosso è il colore della sezione (icone, label, tab attiva) */
+.wi-train { color: var(--danger); }
+.section-trains .tab.active {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
 .news-header-side { display: flex; align-items: center; gap: 8px; }
 #news-toggle { font-size: 1rem; padding: 2px 6px; color: var(--muted); }
 .news-tabs { flex-wrap: wrap; margin-bottom: 10px; }

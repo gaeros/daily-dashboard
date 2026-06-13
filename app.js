@@ -288,32 +288,98 @@ function renderTodos() {
 
   const open = todos.filter((t) => !t.done).length;
   $('#todo-counter').textContent = todos.length ? `${open} da fare` : '';
-  $('#todo-empty').classList.toggle('hidden', todos.length > 0);
+  renderWeek();
+  applyTodoView();
   renderSummary();
 }
 
-$('#todo-list').addEventListener('click', (e) => {
+function setTodoDone(id, checked) {
+  const t = todos.find((t) => t.id === id);
+  if (!t) return;
+  if (checked && t.repeat && t.repeat !== 'none') {
+    // Completare un'attività ricorrente non la archivia: la sposta al ciclo dopo.
+    t.due = nextOccurrence(t.due, t.repeat);
+    t.done = false;
+    delete notified[`${t.id}-pre`];
+    delete notified[`${t.id}-due`];
+    store.set('notified', notified);
+  } else {
+    t.done = checked;
+  }
+  store.set('todos', todos);
+  renderTodos();
+}
+
+function deleteTodo(id) {
+  todos = todos.filter((t) => t.id !== id);
+  store.set('todos', todos);
+  renderTodos();
+}
+
+// Click su lista e su calendario condividono la stessa logica.
+function todoListClick(e) {
   const li = e.target.closest('li');
   if (!li) return;
   const id = +li.dataset.id;
-  if (e.target.matches('input[type="checkbox"]')) {
-    const t = todos.find((t) => t.id === id);
-    if (e.target.checked && t.repeat && t.repeat !== 'none') {
-      // Completare un'attività ricorrente non la archivia: la sposta al ciclo dopo.
-      t.due = nextOccurrence(t.due, t.repeat);
-      t.done = false;
-      delete notified[`${t.id}-pre`];
-      delete notified[`${t.id}-due`];
-      store.set('notified', notified);
-    } else {
-      t.done = e.target.checked;
-    }
-  } else if (e.target.closest('.del')) {
-    todos = todos.filter((t) => t.id !== id);
-  } else return;
-  store.set('todos', todos);
-  renderTodos();
-});
+  if (e.target.matches('input[type="checkbox"]')) setTodoDone(id, e.target.checked);
+  else if (e.target.closest('.del')) deleteTodo(id);
+}
+$('#todo-list').addEventListener('click', todoListClick);
+$('#todo-week').addEventListener('click', todoListClick);
+
+// ---------- Vista agenda: lista o calendario settimanale ----------
+let todoView = store.get('todoView', 'list');
+
+$('#todo-view-list').addEventListener('click', () => { todoView = 'list'; store.set('todoView', todoView); applyTodoView(); });
+$('#todo-view-week').addEventListener('click', () => { todoView = 'week'; store.set('todoView', todoView); applyTodoView(); });
+
+function applyTodoView() {
+  const week = todoView === 'week';
+  $('#todo-list').classList.toggle('hidden', week);
+  $('#todo-week').classList.toggle('hidden', !week);
+  $('#todo-view-list').classList.toggle('active', !week);
+  $('#todo-view-week').classList.toggle('active', week);
+  $('#todo-view-list').setAttribute('aria-pressed', !week);
+  $('#todo-view-week').setAttribute('aria-pressed', week);
+  // Il messaggio "nessuna attività" ha senso solo nella lista.
+  $('#todo-empty').classList.toggle('hidden', week || todos.length > 0);
+}
+
+function renderWeek() {
+  const start = new Date(today); start.setHours(0, 0, 0, 0);
+  const todayISO = toISO(today);
+  const days = [];
+  let lastISO = todayISO;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const iso = toISO(d);
+    lastISO = iso;
+    const items = todos.filter((t) => t.due === iso)
+      .sort((a, b) => (a.done - b.done) || (a.time || '99:99').localeCompare(b.time || '99:99'));
+    const name = i === 0 ? 'Oggi'
+      : d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+    days.push(`<div class="week-day ${i === 0 ? 'today' : ''}">
+      <div class="week-day-head">${name}</div>
+      ${items.length
+        ? `<ul>${items.map((t) => {
+            const overdue = isOverdue(t, todayISO);
+            return `<li class="${t.done ? 'done' : ''} ${overdue ? 'overdue' : ''}" data-id="${t.id}">
+              <input type="checkbox" ${t.done ? 'checked' : ''} aria-label="Completa: ${escapeHtml(t.text)}">
+              <span class="grow">${t.time ? `<strong>${t.time}</strong> ` : ''}${escapeHtml(t.text)}</span>
+              <button class="del" aria-label="Elimina: ${escapeHtml(t.text)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            </li>`;
+          }).join('')}</ul>`
+        : '<p class="muted week-empty">—</p>'}
+    </div>`);
+  }
+  const undated = todos.filter((t) => !t.done && !t.due).length;
+  const beyond = todos.filter((t) => !t.done && t.due && t.due > lastISO).length;
+  const notes = [];
+  if (undated) notes.push(`${undated} senza data`);
+  if (beyond) notes.push(`${beyond} oltre la settimana`);
+  $('#todo-week').innerHTML = days.join('')
+    + (notes.length ? `<p class="muted week-note">${fa('fa-circle-info')} ${notes.join(' · ')} (visibili nella lista)</p>` : '');
+}
 
 // ---------- Lista della spesa ----------
 let shopping = store.get('shopping', []);
@@ -757,11 +823,19 @@ function escapeHtml(s) {
   }[ch]));
 }
 
-// ---------- Tratta preferita (es. casa–lavoro) ----------
-let route = store.get('route', null);
-let routeSolutions = null;
+// ---------- Tratte preferite (es. casa–lavoro) ----------
+// Più tratte salvabili: ognuna mostra i suoi prossimi treni diretti.
+let routes = store.get('routes', null);
+if (!routes) {
+  // Migrazione dalla singola tratta delle versioni precedenti.
+  const old = store.get('route', null);
+  routes = old ? [{ id: Date.now(), from: old.from, to: old.to }] : [];
+  store.set('routes', routes);
+  localStorage.removeItem('route');
+}
+let routeSolutions = {}; // { [routeId]: soluzioni }
 let routeDraft = {};
-// Momento da cui cercare i treni: null = adesso (e si aggiorna da solo).
+// Momento da cui cercare i treni: null = adesso (e si aggiorna da solo). Vale per tutte.
 let routeWhen = null;
 
 // Autocomplete stazione riusabile: input → risultati → callback con la scelta.
@@ -789,105 +863,129 @@ function stationPicker(inputSel, resultsSel, onPick) {
   });
 }
 
-$('#route-form').addEventListener('submit', (e) => e.preventDefault());
-stationPicker('#route-from', '#route-from-results', (s) => {
-  routeDraft.from = s;
-  $('#route-from').value = s.name;
-  saveRouteIfComplete();
-});
-stationPicker('#route-to', '#route-to-results', (s) => {
-  routeDraft.to = s;
-  $('#route-to').value = s.name;
-  saveRouteIfComplete();
-});
+stationPicker('#route-from', '#route-from-results', (s) => { routeDraft.from = s; $('#route-from').value = s.name; });
+stationPicker('#route-to', '#route-to-results', (s) => { routeDraft.to = s; $('#route-to').value = s.name; });
 
-function saveRouteIfComplete() {
-  // I form restano sempre visibili: chi cambia una sola stazione
-  // completa con l'altra metà della tratta già salvata.
-  const from = routeDraft.from || route?.from;
-  const to = routeDraft.to || route?.to;
-  if (!from || !to) return;
+// "Aggiungi": registra una nuova tratta dalla coppia selezionata.
+$('#route-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const { from, to } = routeDraft;
+  if (!from || !to) {
+    $('#route-hint').textContent = 'Scegli partenza e arrivo dai suggerimenti.';
+    return;
+  }
   if (from.code === to.code) {
-    $('#route-hint').classList.remove('hidden');
     $('#route-hint').textContent = 'Le due stazioni devono essere diverse.';
     return;
   }
-  route = { from, to };
-  store.set('route', route);
-  routeDraft = {};
-  renderRouteUI();
-  loadRoute();
-}
-
-function renderRouteUI() {
-  const has = !!route;
-  if (has) {
-    $('#route-from').value = route.from.name;
-    $('#route-to').value = route.to.name;
+  if (routes.some((r) => r.from.code === from.code && r.to.code === to.code)) {
+    $('#route-hint').textContent = 'Questa tratta è già salvata.';
+    return;
   }
-  $('#route-hint').classList.toggle('hidden', has);
-  $('#route-content').classList.toggle('hidden', !has);
-  ['#route-swap', '#route-refresh'].forEach((sel) =>
-    $(sel).classList.toggle('hidden', !has));
-}
+  const r = { id: Date.now(), from, to };
+  routes.push(r);
+  store.set('routes', routes);
+  routeDraft = {};
+  $('#route-from').value = '';
+  $('#route-to').value = '';
+  renderRoutes();
+  loadRouteOne(r);
+});
 
 $('#route-when').addEventListener('submit', (e) => {
   e.preventDefault();
   const d = $('#route-date').value;
   const t = $('#route-time').value;
-  if (!d && !t) { routeWhen = null; loadRoute(); return; }
+  if (!d && !t) { routeWhen = null; loadAllRoutes(); return; }
   const dt = new Date(`${d || toISO(new Date())}T${t || '00:00'}`);
   if (Number.isNaN(dt.getTime())) return;
   routeWhen = dt.getTime();
-  loadRoute();
+  loadAllRoutes();
 });
 
 $('#route-now').addEventListener('click', () => {
   routeWhen = null;
   $('#route-date').value = '';
   $('#route-time').value = '';
-  loadRoute();
+  loadAllRoutes();
 });
 
-$('#route-swap').addEventListener('click', () => {
-  route = { from: route.to, to: route.from };
-  store.set('route', route);
-  renderRouteUI();
-  loadRoute();
+// Azioni per-tratta (inverti / aggiorna / rimuovi), delegate sulla lista.
+$('#route-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const id = +btn.closest('.route-item').dataset.id;
+  const r = routes.find((x) => x.id === id);
+  if (!r) return;
+  if (btn.dataset.act === 'swap') {
+    [r.from, r.to] = [r.to, r.from];
+    store.set('routes', routes);
+    renderRoutes();
+    loadRouteOne(r);
+  } else if (btn.dataset.act === 'refresh') {
+    loadRouteOne(r);
+  } else if (btn.dataset.act === 'remove') {
+    routes = routes.filter((x) => x.id !== id);
+    delete routeSolutions[id];
+    store.set('routes', routes);
+    renderRoutes();
+    renderMorning();
+  }
 });
-$('#route-refresh').addEventListener('click', () => loadRoute());
+
+// Costruisce i blocchi-tratta (vuoti), poi avvia il caricamento di ciascuno.
+function renderRoutes() {
+  $('#route-hint').classList.toggle('hidden', routes.length > 0);
+  $('#route-when').classList.toggle('hidden', routes.length === 0);
+  $('#route-list').innerHTML = routes.map((r) => `
+    <div class="route-item" data-id="${r.id}">
+      <div class="board-header">
+        <strong>${escapeHtml(r.from.name)} → ${escapeHtml(r.to.name)}</strong>
+        <div class="board-tabs">
+          <button type="button" class="tab" data-act="swap" aria-label="Inverti la direzione"><i class="fa-solid fa-right-left" aria-hidden="true"></i></button>
+          <button type="button" class="tab" data-act="refresh" aria-label="Aggiorna la tratta"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+          <button type="button" class="tab" data-act="remove" aria-label="Rimuovi la tratta ${escapeHtml(r.from.name)} ${escapeHtml(r.to.name)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        </div>
+      </div>
+      <div class="route-item-content" id="route-content-${r.id}"><p class="muted">Cerco i prossimi treni diretti…</p></div>
+    </div>`).join('');
+}
+
+function loadAllRoutes(silent = false) {
+  routes.forEach((r) => loadRouteOne(r, silent));
+}
 
 // silent = aggiornamento automatico, come per tabellone e treno seguito.
-async function loadRoute(silent = false) {
-  if (!route) return;
-  const head = `<strong>${escapeHtml(route.from.name)} → ${escapeHtml(route.to.name)}</strong>`;
-  if (!silent) $('#route-content').innerHTML = `${head}<p class="muted">Cerco i prossimi treni diretti…</p>`;
+async function loadRouteOne(r, silent = false) {
+  const box = $(`#route-content-${r.id}`);
+  if (!box) return;
   try {
-    const res = await fetch(`/api/route?from=${route.from.code}&to=${route.to.code}`
-      + `&toName=${encodeURIComponent(route.to.name)}`
+    const res = await fetch(`/api/route?from=${r.from.code}&to=${r.to.code}`
+      + `&toName=${encodeURIComponent(r.to.name)}`
       + (routeWhen ? `&date=${routeWhen}` : ''));
     if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
-    routeSolutions = await res.json();
-    renderRoute(routeSolutions);
+    routeSolutions[r.id] = await res.json();
+    renderRouteOne(r);
     renderMorning();
   } catch (err) {
     if (silent) return;
-    $('#route-content').innerHTML =
-      `${head}<p class="muted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Tratta non disponibile: ${escapeHtml(err.message)}</p>`;
+    box.innerHTML =
+      `<p class="muted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Tratta non disponibile: ${escapeHtml(err.message)}</p>`;
   }
 }
 
-function renderRoute(sols) {
-  const head = `<strong>${escapeHtml(route.from.name)} → ${escapeHtml(route.to.name)}</strong>`;
+function renderRouteOne(r) {
+  const box = $(`#route-content-${r.id}`);
+  if (!box) return;
+  const sols = routeSolutions[r.id] || [];
   if (!sols.length) {
     const otherDay = routeWhen && toISO(new Date(routeWhen)) !== toISO(new Date());
-    $('#route-content').innerHTML = `${head}<p class="muted">Nessun treno diretto trovato`
+    box.innerHTML = `<p class="muted">Nessun treno diretto trovato`
       + `${routeWhen ? ' nel periodo scelto' : ' in partenza a breve'} su questa tratta.`
       + `${otherDay ? '<br>Nota: per i giorni futuri ViaggiaTreno mostra solo i treni con capolinea nella stazione di arrivo; le fermate intermedie diventano consultabili il giorno stesso.' : ''}</p>`;
     return;
   }
-  $('#route-content').innerHTML = `${head}
-  <table class="board-table">
+  box.innerHTML = `<table class="board-table">
     <thead><tr><th>Parte</th><th>Arriva</th><th>Treno</th><th>Ritardo</th><th>Bin.</th></tr></thead>
     <tbody>${sols.map((s) => {
       const delay = s.programmato
@@ -935,10 +1033,12 @@ function renderMorning() {
   lines.push(first
     ? `${fa('fa-clock')} Primo impegno: «${escapeHtml(first.text)}»${first.time ? ` alle ${first.time}` : ''}`
     : `${fa('fa-circle-check')} Nessuna scadenza oggi, goditi la giornata!`);
-  if (route && routeSolutions?.length) {
-    const s = routeSolutions[0];
+  // Prima tratta preferita con un treno utile.
+  const firstRoute = routes.find((r) => routeSolutions[r.id]?.length);
+  if (firstRoute) {
+    const s = routeSolutions[firstRoute.id][0];
     const delay = s.ritardo > 0 ? ` <span class="late">(+${s.ritardo} min)</span>` : '';
-    lines.push(`${fa('fa-train')} Prossimo treno per ${escapeHtml(route.to.name)}: ${s.partenza}${delay}`);
+    lines.push(`${fa('fa-train')} Prossimo treno per ${escapeHtml(firstRoute.to.name)}: ${s.partenza}${delay}`);
   }
   $('#morning-content').innerHTML = lines.map((l) => `<span>${l}</span>`).join('');
 }
@@ -950,7 +1050,7 @@ $('#morning-close').addEventListener('click', () => {
 
 // ---------- Notizie (feed RSS ANSA via proxy locale) ----------
 let newsFeed = store.get('newsFeed', 'top');
-let newsCollapsed = store.get('newsCollapsed', false);
+let newsCollapsed = store.get('newsCollapsed', true);
 
 function applyNewsCollapsed() {
   $('#news-body').classList.toggle('hidden', newsCollapsed);
@@ -1111,7 +1211,7 @@ setInterval(checkDeadlines, 30_000);
 // ---------- Backup: export / import dei dati ----------
 // Tutto vive nel localStorage: questo è l'unico modo per non perderlo cambiando
 // dispositivo o pulendo il browser. Si esportano i dati, non lo stato volatile.
-const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'route', 'city', 'newsFeed', 'newsCollapsed', 'notifyEnabled'];
+const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'city', 'newsFeed', 'newsCollapsed', 'notifyEnabled', 'todoView'];
 
 $('#btn-export').addEventListener('click', () => {
   const data = { app: 'daily-dashboard', version: 1, exported: new Date().toISOString() };
@@ -1169,7 +1269,7 @@ function refreshTrains() {
   if (document.hidden) return;
   if (board.station) loadBoard(true);
   if (currentTrain) loadTrain(true);
-  if (route) loadRoute(true);
+  if (routes.length) loadAllRoutes(true);
 }
 
 setInterval(refreshTrains, REFRESH_MS);
@@ -1184,8 +1284,8 @@ if ('serviceWorker' in navigator) {
 renderTodos();
 renderShopping();
 renderStations();
-renderRouteUI();
-if (route) loadRoute();
+renderRoutes();
+loadAllRoutes();
 updateNotifUI();
 checkDeadlines();
 loadWeather();

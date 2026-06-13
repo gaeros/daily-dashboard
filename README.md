@@ -35,17 +35,17 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 ## Funzionalità
 
 - **Meteo** (Open-Meteo, gratuito, senza API key): condizioni attuali + previsioni a 7 giorni, con probabilità di pioggia. Città configurabile da ⚙️ (ricerca o geolocalizzazione). Tocca un giorno per il dettaglio: andamento ora per ora, pioggia attesa (probabilità e mm), vento massimo, indice UV, alba e tramonto.
-- **Agenda**: attività con priorità, giorno **e orario** di scadenza, ordinate automaticamente; le attività in ritardo (anche solo d'orario) sono evidenziate. Le attività possono essere **ricorrenti** (ogni giorno, Lun–Ven, ogni settimana o ogni mese): spuntandole non spariscono, ma slittano da sole all'occorrenza successiva.
+- **Agenda**: attività con priorità, giorno **e orario** di scadenza, ordinate automaticamente; le attività in ritardo (anche solo d'orario) sono evidenziate. Le attività possono essere **ricorrenti** (ogni giorno, Lun–Ven, ogni settimana o ogni mese): spuntandole non spariscono, ma slittano da sole all'occorrenza successiva. Due viste: **lista** o **calendario settimanale** (i prossimi 7 giorni con le attività distribuite per giorno).
 - **Promemoria con notifiche**: attivabili da ⚙️, una notifica 15 minuti prima e una all'ora della scadenza, più un avviso quando il **treno seguito accumula ritardo** (Notification API). Limite onesto: funzionano solo ad app aperta, anche installata come PWA — senza un server push non è possibile l'invio da remoto.
 - **Treni in tempo reale** (ViaggiaTreno): cerca una stazione, salvala tra le preferite e consulta il tabellone partenze/arrivi live con ritardi e binari effettivi.
 - **Segui un treno per numero**: percorso completo fermata per fermata, con orario programmato vs effettivo, ritardo a ogni fermata e indicazione dell'ultima posizione rilevata.
-- **Tratta preferita** (es. casa–lavoro): salvi partenza e arrivo una volta e vedi subito i prossimi treni **diretti** con orari, ritardo live e binario; un tap inverte la direzione per il ritorno e puoi scegliere giorno e ora da cui far partire la ricerca. (ViaggiaTreno non espone più le "soluzioni di viaggio", quindi la tratta è ricostruita dal tabellone: niente soluzioni con cambio. Per i giorni futuri ViaggiaTreno non pubblica ancora i percorsi: compaiono solo i treni con capolinea nella stazione di arrivo, con orario programmato.)
+- **Tratte preferite** (es. casa–lavoro): salvi **più tratte**, ognuna mostra subito i prossimi treni **diretti** con orari, ritardo live e binario; un tap inverte la direzione per il ritorno, e un selettore giorno/ora (comune a tutte) sposta la ricerca in avanti. (ViaggiaTreno non espone più le "soluzioni di viaggio", quindi la tratta è ricostruita dal tabellone: niente soluzioni con cambio. Per i giorni futuri ViaggiaTreno non pubblica ancora i percorsi: compaiono solo i treni con capolinea nella stazione di arrivo, con orario programmato.)
 - **Riepilogo mattutino**: aprendo l'app tra le 6 e le 10 compare il "Buongiorno" con meteo di oggi, primo impegno in agenda e primo treno della tratta preferita; si può chiudere per il resto della giornata.
 - **Aggiornamento automatico**: tabellone e treno seguito si rinfrescano da soli ogni minuto (solo a scheda visibile, per non sprecare richieste); se il treno seguito accumula ritardo, compare un avviso nel riepilogo intelligente.
 - **Lista della spesa**: spunta gli articoli man mano che li prendi (scendono in fondo), rimuovili tutti insieme con un tap quando hai finito, riordinali trascinandoli dal manico (anche su touch) o con le frecce su/giù da tastiera. L'app impara cosa compri più spesso e te lo ripropone come suggerimento con un tap ("Compri spesso: + Latte").
 - **Interfaccia compatta**: meteo, agenda e form occupano poco spazio verticale; tutti i pulsanti hanno la stessa dimensione e i campi di partenza/arrivo della tratta restano sempre visibili per cambiarla al volo.
 - **Accessibilità**: etichette visibili o per screen reader su tutti i controlli, navigazione completa da tastiera (risultati di ricerca come pulsanti), `aria-live` sugli aggiornamenti dinamici, contrasti conformi WCAG AA e controlli nativi (date/time picker) leggibili anche in tema scuro grazie a `color-scheme`.
-- **Ultime notizie** (feed RSS ANSA, via proxy): titoli con categoria a scelta (top, mondo, economia, sport, tecnologia), link all'articolo originale, aggiornamento automatico ogni 10 minuti. Il widget è richiudibile e ricorda lo stato (da chiuso non scarica nulla).
+- **Ultime notizie** (feed RSS ANSA, via proxy): titoli con categoria a scelta (top, mondo, economia, sport, tecnologia), link all'articolo originale, aggiornamento automatico ogni 10 minuti. Il widget è **richiudibile** (chiuso di default) e ricorda lo stato: da chiuso non scarica nulla.
 - **Riepilogo intelligente**: avvisi automatici (pioggia in arrivo, scadenze di oggi, attività in ritardo).
 - **Backup dei dati**: da ⚙️ esporti agenda, spesa, stazioni, tratta e città in un file JSON e li reimporti (anche su un altro dispositivo). È l'unico ponte fuori dal localStorage del singolo browser.
 - **Offline**: il service worker mantiene l'app utilizzabile senza rete, con l'ultimo meteo in cache.
@@ -69,6 +69,6 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 
 ## Idee per il prossimo passo
 
-- Vista calendario settimanale per l'agenda
-- Più tratte preferite salvabili
 - Sincronizzazione tra dispositivi (richiederebbe un backend con account)
+- Qualità dell'aria / pollini (Open-Meteo Air Quality)
+- Attività dell'agenda riordinabili come la lista della spesa

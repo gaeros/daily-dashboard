@@ -53,7 +53,13 @@
     <section class="card">
       <div class="card-header">
         <h2><i class="fa-solid fa-list-check" aria-hidden="true"></i> Agenda</h2>
-        <span id="todo-counter" class="muted"></span>
+        <div class="todo-head-side">
+          <span id="todo-counter" class="muted"></span>
+          <div class="board-tabs" role="group" aria-label="Vista agenda">
+            <button type="button" id="todo-view-list" class="tab active" aria-pressed="true">Lista</button>
+            <button type="button" id="todo-view-week" class="tab" aria-pressed="false">Settimana</button>
+          </div>
+        </div>
       </div>
       <form id="todo-form">
         <label class="sr-only" for="todo-text">Attività da aggiungere</label>
@@ -87,6 +93,7 @@
         <button type="submit">Aggiungi</button>
       </form>
       <ul id="todo-list"></ul>
+      <div id="todo-week" class="todo-week hidden"></div>
       <p id="todo-empty" class="muted hidden">Nessuna attività. Aggiungine una! <i class="fa-solid fa-circle-check" aria-hidden="true"></i></p>
     </section>
 
@@ -110,10 +117,10 @@
     </section>
 
     <!-- Treni -->
-    <section class="card">
+    <section class="card section-trains">
       <div class="card-header">
-        <h2><i class="fa-solid fa-train" aria-hidden="true"></i> Treni in tempo reale</h2>
-        <span class="muted">ViaggiaTreno</span>
+        <h2><i class="fa-solid fa-train wi-train" aria-hidden="true"></i> Treni in tempo reale</h2>
+        <span class="muted wi-train">ViaggiaTreno</span>
       </div>
       <form id="station-form">
         <label class="sr-only" for="station-input">Cerca una stazione</label>
@@ -159,11 +166,7 @@
       <hr class="divider">
 
       <div class="board-header">
-        <strong><i class="fa-solid fa-route" aria-hidden="true"></i> Tratta preferita</strong>
-        <div class="board-tabs">
-          <button type="button" id="route-swap" class="tab hidden" aria-label="Inverti la direzione della tratta"><i class="fa-solid fa-right-left" aria-hidden="true"></i></button>
-          <button type="button" id="route-refresh" class="tab hidden" aria-label="Aggiorna la tratta"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
-        </div>
+        <strong><i class="fa-solid fa-route wi-train" aria-hidden="true"></i> Tratte preferite</strong>
       </div>
       <form id="route-form" autocomplete="off">
         <div class="field">
@@ -174,11 +177,12 @@
           <label for="route-to">A</label>
           <input type="text" id="route-to" placeholder="Stazione di arrivo" maxlength="60">
         </div>
+        <button type="submit" id="route-add">Aggiungi</button>
       </form>
       <ul id="route-from-results" class="city-results" aria-label="Stazioni di partenza trovate"></ul>
       <ul id="route-to-results" class="city-results" aria-label="Stazioni di arrivo trovate"></ul>
-      <p id="route-hint" class="muted">Salva la tratta che fai più spesso (es. casa–lavoro) per vedere subito i prossimi treni diretti con i ritardi.</p>
-      <form id="route-when" class="route-when" autocomplete="off">
+      <p id="route-hint" class="muted">Salva le tratte che fai più spesso (es. casa–lavoro) per vedere subito i prossimi treni diretti con i ritardi.</p>
+      <form id="route-when" class="route-when hidden" autocomplete="off">
         <div class="field">
           <label for="route-date">Giorno</label>
           <input type="date" id="route-date">
@@ -190,7 +194,7 @@
         <button type="submit" class="tab">Cerca</button>
         <button type="button" id="route-now" class="tab">Adesso</button>
       </form>
-      <div id="route-content" class="board hidden" aria-live="polite"></div>
+      <div id="route-list" aria-live="polite"></div>
     </section>
 
     <!-- Notizie -->
