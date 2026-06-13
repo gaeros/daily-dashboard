@@ -35,7 +35,8 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 ## Funzionalità
 
 - **Meteo** (Open-Meteo, gratuito, senza API key): condizioni attuali + previsioni a 7 giorni, con probabilità di pioggia. Città configurabile da ⚙️ (ricerca o geolocalizzazione). Tocca un giorno per il dettaglio: andamento ora per ora, pioggia attesa (probabilità e mm), vento massimo, indice UV, alba e tramonto.
-- **Agenda**: attività con priorità, giorno **e orario** di scadenza, ordinate automaticamente; le attività in ritardo (anche solo d'orario) sono evidenziate. Le attività possono essere **ricorrenti** (ogni giorno, Lun–Ven, ogni settimana o ogni mese): spuntandole non spariscono, ma slittano da sole all'occorrenza successiva. Due viste: **lista** o **calendario settimanale** (i prossimi 7 giorni con le attività distribuite per giorno).
+- **Qualità dell'aria e pollini** (Open-Meteo Air Quality): indice europeo (AQI) con etichetta e colore per livello, più il polline più alto del momento (graminacee, betulla, olivo, ambrosia, ontano, artemisia) con livello basso/medio/alto.
+- **Agenda**: attività con priorità, giorno **e orario** di scadenza, ordinate automaticamente; le attività in ritardo (anche solo d'orario) sono evidenziate. Le attività possono essere **ricorrenti** (ogni giorno, Lun–Ven, ogni settimana o ogni mese): spuntandole non spariscono, ma slittano da sole all'occorrenza successiva. Due viste: **lista** o **calendario settimanale** (i prossimi 7 giorni con le attività distribuite per giorno). Nella lista le attività si **riordinano** trascinandole dal manico (anche su touch) o con le frecce su/giù da tastiera.
 - **Promemoria con notifiche**: attivabili da ⚙️, una notifica 15 minuti prima e una all'ora della scadenza, più un avviso quando il **treno seguito accumula ritardo** (Notification API). Limite onesto: funzionano solo ad app aperta, anche installata come PWA — senza un server push non è possibile l'invio da remoto.
 - **Treni in tempo reale** (ViaggiaTreno): cerca una stazione, salvala tra le preferite e consulta il tabellone partenze/arrivi live con ritardi e binari effettivi.
 - **Segui un treno per numero**: percorso completo fermata per fermata, con orario programmato vs effettivo, ritardo a ogni fermata e indicazione dell'ultima posizione rilevata.
@@ -61,7 +62,7 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 
 ## Sicurezza
 
-- Tutto l'HTML generato da dati esterni o utente passa per l'escape; una **Content-Security-Policy** rigida (`default-src 'self'`, connessioni consentite solo verso Open-Meteo; treni e notizie passano dal proxy locale) fa da seconda linea di difesa.
+- Tutto l'HTML generato da dati esterni o utente passa per l'escape; una **Content-Security-Policy** rigida (`default-src 'self'`, connessioni consentite solo verso le API Open-Meteo; treni e notizie passano dal proxy locale) fa da seconda linea di difesa.
 - Il server valida con regex strette tutti i parametri verso ViaggiaTreno (niente SSRF), i feed notizie sono una whitelist chiusa, blocca i path traversal, resiste alle richieste malformate e non espone dettagli d'errore interni al client.
 - **Rate limit** di 60 richieste API al minuto per IP e **cache breve** delle risposte (30 s per i treni, 2 min per la tratta, 5 min per le notizie): se l'app è esposta su Internet, i servizi a monte non vengono mai martellati.
 - Header `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` e `frame-ancestors 'none'` su tutte le risposte.
@@ -70,5 +71,4 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 ## Idee per il prossimo passo
 
 - Sincronizzazione tra dispositivi (richiederebbe un backend con account)
-- Qualità dell'aria / pollini (Open-Meteo Air Quality)
-- Attività dell'agenda riordinabili come la lista della spesa
+- Previsione dei pollini nei prossimi giorni, non solo del momento

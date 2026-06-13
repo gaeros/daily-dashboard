@@ -50,6 +50,7 @@ let selectedDay = null;
 
 async function loadWeather() {
   $('#weather-city').textContent = city.name;
+  loadAirQuality(); // indipendente: se fallisce non tocca il meteo
   const url = 'https://api.open-meteo.com/v1/forecast' +
     `?latitude=${city.latitude}&longitude=${city.longitude}` +
     '&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code' +
@@ -67,6 +68,67 @@ async function loadWeather() {
       '<p class="muted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Meteo non disponibile (sei offline?). Riprova più tardi.</p>';
     console.error('Meteo:', err);
   }
+}
+
+// ---------- Qualità dell'aria e pollini (Open-Meteo Air Quality) ----------
+// Soglie dell'indice europeo (european_aqi): 0–20 buona … >100 pessima.
+const AQI_LEVELS = [
+  [20, 'Buona', 'aqi-good'],
+  [40, 'Discreta', 'aqi-fair'],
+  [60, 'Moderata', 'aqi-moderate'],
+  [80, 'Scarsa', 'aqi-poor'],
+  [100, 'Molto scarsa', 'aqi-vpoor'],
+  [Infinity, 'Pessima', 'aqi-extreme'],
+];
+const POLLEN_LABELS = {
+  grass_pollen: 'graminacee', birch_pollen: 'betulla', olive_pollen: 'olivo',
+  ragweed_pollen: 'ambrosia', alder_pollen: 'ontano', mugwort_pollen: 'artemisia',
+};
+// grani/m³ → livello (soglie indicative comuni per i pollini).
+function pollenLevel(v) {
+  if (v >= 50) return 'alto';
+  if (v >= 20) return 'medio';
+  if (v >= 1) return 'basso';
+  return null;
+}
+
+async function loadAirQuality() {
+  const url = 'https://air-quality-api.open-meteo.com/v1/air-quality' +
+    `?latitude=${city.latitude}&longitude=${city.longitude}` +
+    '&current=european_aqi' +
+    '&hourly=grass_pollen,birch_pollen,olive_pollen,ragweed_pollen,alder_pollen,mugwort_pollen' +
+    '&timezone=auto&forecast_days=1';
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    renderAirQuality(await res.json());
+  } catch (err) {
+    $('#air-quality').classList.add('hidden');
+    console.error('Aria:', err);
+  }
+}
+
+function renderAirQuality(data) {
+  const aqi = data.current?.european_aqi;
+  if (aqi == null) { $('#air-quality').classList.add('hidden'); return; }
+  const [, label, cls] = AQI_LEVELS.find(([max]) => aqi <= max);
+
+  // Polline più alto all'ora corrente (hourly parte da mezzanotte locale).
+  const h = data.hourly;
+  let top = null;
+  if (h && h.time) {
+    const i = Math.min(new Date().getHours(), h.time.length - 1);
+    Object.keys(POLLEN_LABELS).forEach((k) => {
+      const v = h[k] ? h[k][i] : null;
+      if (v != null && (!top || v > top.v)) top = { k, v };
+    });
+  }
+  const lvl = top ? pollenLevel(top.v) : null;
+
+  const box = $('#air-quality');
+  box.className = `air-quality ${cls}`;
+  box.innerHTML = `${fa('fa-wind')} Aria: <strong>${label}</strong> <span class="muted">(indice ${Math.round(aqi)})</span>`
+    + (lvl ? ` · ${fa('fa-seedling')} Pollini ${POLLEN_LABELS[top.k]}: <strong>${lvl}</strong>` : '');
 }
 
 function renderWeather(data) {
@@ -260,11 +322,9 @@ function isOverdue(t, todayISO) {
 }
 
 function renderTodos() {
-  const order = { alta: 0, normale: 1, bassa: 2 };
-  const dueKey = (t) => (t.due || '9999') + 'T' + (t.time || '99:99');
-  const sorted = [...todos].sort((a, b) =>
-    (a.done - b.done) || (order[a.priority] - order[b.priority]) ||
-    dueKey(a).localeCompare(dueKey(b)));
+  // L'ordine è manuale (trascinamento o frecce): il sort stabile tiene
+  // l'ordine dell'array e porta solo le completate in fondo.
+  const sorted = [...todos].sort((a, b) => a.done - b.done);
 
   const todayISO = toISO(today);
   $('#todo-list').innerHTML = sorted.map((t) => {
@@ -278,6 +338,7 @@ function renderTodos() {
     const prio = t.priority === 'alta' ? `<i class="fa-solid fa-flag prio-alta" aria-hidden="true" title="Priorità alta"></i>`
       : t.priority === 'bassa' ? `<i class="fa-solid fa-flag prio-bassa" aria-hidden="true" title="Priorità bassa"></i>` : '';
     return `<li class="${t.done ? 'done' : ''} ${overdue ? 'overdue' : ''}" data-id="${t.id}">
+      ${t.done ? '' : `<button type="button" class="handle" aria-label="Riordina: ${escapeHtml(t.text)}. Trascina, o usa le frecce su e giù"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button>`}
       <input type="checkbox" ${t.done ? 'checked' : ''} aria-label="${t.repeat && t.repeat !== 'none' ? 'Completa questa occorrenza di' : 'Segna come completata'}: ${escapeHtml(t.text)}">
       <div class="grow">${prio} ${escapeHtml(t.text)}
         ${dueLabel || rep ? `<div class="meta">${fa('fa-calendar-days')} ${dueLabel}${rep}${overdue ? ' · in ritardo!' : ''}</div>` : ''}
@@ -326,6 +387,59 @@ function todoListClick(e) {
 }
 $('#todo-list').addEventListener('click', todoListClick);
 $('#todo-week').addEventListener('click', todoListClick);
+
+// --- Riordino dell'agenda (solo vista lista): manico per trascinare, frecce su/giù ---
+function applyTodoOrder() {
+  const order = [...$('#todo-list').querySelectorAll('li')].map((li) => +li.dataset.id);
+  todos.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  store.set('todos', todos);
+  renderTodos();
+}
+
+let draggingTodo = null;
+
+$('#todo-list').addEventListener('pointerdown', (e) => {
+  const handle = e.target.closest('.handle');
+  if (!handle) return;
+  e.preventDefault();
+  draggingTodo = handle.closest('li');
+  draggingTodo.classList.add('dragging');
+  handle.setPointerCapture(e.pointerId);
+});
+
+$('#todo-list').addEventListener('pointermove', (e) => {
+  if (!draggingTodo) return;
+  const list = $('#todo-list');
+  const target = [...list.querySelectorAll('li:not(.dragging):not(.done)')]
+    .find((li) => e.clientY < li.getBoundingClientRect().top + li.offsetHeight / 2);
+  if (target) list.insertBefore(draggingTodo, target);
+  else {
+    const firstDone = list.querySelector('li.done');
+    firstDone ? list.insertBefore(draggingTodo, firstDone) : list.appendChild(draggingTodo);
+  }
+});
+
+const endDragTodo = () => {
+  if (!draggingTodo) return;
+  draggingTodo.classList.remove('dragging');
+  draggingTodo = null;
+  applyTodoOrder();
+};
+$('#todo-list').addEventListener('pointerup', endDragTodo);
+$('#todo-list').addEventListener('pointercancel', endDragTodo);
+
+$('#todo-list').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  const handle = e.target.closest('.handle');
+  if (!handle) return;
+  e.preventDefault();
+  const li = handle.closest('li');
+  const sibling = e.key === 'ArrowUp' ? li.previousElementSibling : li.nextElementSibling;
+  if (!sibling || sibling.classList.contains('done')) return;
+  li.parentNode.insertBefore(li, e.key === 'ArrowUp' ? sibling : sibling.nextElementSibling);
+  applyTodoOrder();
+  $(`#todo-list li[data-id="${li.dataset.id}"] .handle`)?.focus();
+});
 
 // ---------- Vista agenda: lista o calendario settimanale ----------
 let todoView = store.get('todoView', 'list');

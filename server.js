@@ -116,7 +116,7 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'no-referrer',
 };
 const CSP = "default-src 'self'; " +
-  "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; " +
+  "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://air-quality-api.open-meteo.com; " +
   "img-src 'self' data:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
 function sendJson(res, status, body, extra = {}) {
