@@ -430,6 +430,8 @@ li.active-station { outline: 2px solid var(--accent); }
 
 /* Agenda: intestazione con contatore + tab vista */
 .todo-head-side { display: flex; align-items: center; gap: 10px; }
+#todo-sort { font-size: 1rem; padding: 2px 6px; color: var(--muted); }
+#todo-sort:hover { color: var(--accent); }
 
 /* Vista calendario settimanale */
 .todo-week { display: grid; gap: 8px; }

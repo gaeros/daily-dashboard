@@ -444,6 +444,17 @@ $('#todo-list').addEventListener('keydown', (e) => {
 // ---------- Vista agenda: lista o calendario settimanale ----------
 let todoView = store.get('todoView', 'list');
 
+// Riapplica l'ordinamento automatico (scadenza + priorità) come ordine manuale.
+$('#todo-sort').addEventListener('click', () => {
+  const prioRank = { alta: 0, normale: 1, bassa: 2 };
+  const dueKey = (t) => (t.due || '9999') + 'T' + (t.time || '99:99');
+  todos.sort((a, b) =>
+    (a.done - b.done) || (prioRank[a.priority] - prioRank[b.priority]) ||
+    dueKey(a).localeCompare(dueKey(b)));
+  store.set('todos', todos);
+  renderTodos();
+});
+
 $('#todo-view-list').addEventListener('click', () => { todoView = 'list'; store.set('todoView', todoView); applyTodoView(); });
 $('#todo-view-week').addEventListener('click', () => { todoView = 'week'; store.set('todoView', todoView); applyTodoView(); });
 
@@ -457,6 +468,8 @@ function applyTodoView() {
   $('#todo-view-week').setAttribute('aria-pressed', week);
   // Il messaggio "nessuna attività" ha senso solo nella lista.
   $('#todo-empty').classList.toggle('hidden', week || todos.length > 0);
+  // Riordinare per scadenza agisce sulla lista: in vista settimana è inutile.
+  $('#todo-sort').classList.toggle('hidden', week);
 }
 
 function renderWeek() {
