@@ -92,20 +92,46 @@ function pollenLevel(v) {
   return null;
 }
 
+let airData = null;
+
 async function loadAirQuality() {
+  // forecast_days=7 per allinearsi al meteo; i pollini sono previsti solo per
+  // i primi ~4 giorni (oltre, i valori sono null e li ignoriamo).
   const url = 'https://air-quality-api.open-meteo.com/v1/air-quality' +
     `?latitude=${city.latitude}&longitude=${city.longitude}` +
     '&current=european_aqi' +
     '&hourly=grass_pollen,birch_pollen,olive_pollen,ragweed_pollen,alder_pollen,mugwort_pollen' +
-    '&timezone=auto&forecast_days=1';
+    '&timezone=auto&forecast_days=7';
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    renderAirQuality(await res.json());
+    airData = await res.json();
+    renderAirQuality(airData);
+    if (selectedDay !== null) renderWeatherDetail(selectedDay); // aggiorna il dettaglio aperto
   } catch (err) {
+    airData = null;
     $('#air-quality').classList.add('hidden');
     console.error('Aria:', err);
   }
+}
+
+// Pollini previsti per una data (YYYY-MM-DD): picco giornaliero per tipo,
+// solo quelli con livello apprezzabile, ordinati dal più alto.
+function dayPollens(dateISO) {
+  const h = airData && airData.hourly;
+  if (!h || !h.time) return [];
+  const idxs = [];
+  h.time.forEach((t, i) => { if (t.startsWith(dateISO)) idxs.push(i); });
+  if (!idxs.length) return [];
+  const out = [];
+  Object.keys(POLLEN_LABELS).forEach((k) => {
+    if (!h[k]) return;
+    let peak = -1;
+    idxs.forEach((i) => { const v = h[k][i]; if (v != null && v > peak) peak = v; });
+    const lvl = pollenLevel(peak);
+    if (lvl) out.push({ name: POLLEN_LABELS[k], peak, level: lvl });
+  });
+  return out.sort((a, b) => b.peak - a.peak);
 }
 
 function renderAirQuality(data) {
@@ -204,6 +230,13 @@ function renderWeatherDetail(i) {
     </div>`);
   }
 
+  // Pollini previsti per questo giorno (se nella finestra di previsione ~4 giorni).
+  const pollens = dayPollens(d.time[i]);
+  const pollenRow = pollens.length
+    ? `<div class="detail-pollens">${fa('fa-seedling')} Pollini: ${pollens
+        .map((p) => `${p.name} <strong>${p.level}</strong>`).join(' · ')}</div>`
+    : '';
+
   $('#weather-detail').innerHTML = `
     <div class="detail-header">
       <strong>${icon} ${title}</strong> · ${label}
@@ -216,6 +249,7 @@ function renderWeatherDetail(i) {
       <span>${fa('fa-arrow-up wi-sun')} alba ${hhmm(d.sunrise[i])}</span>
       <span>${fa('fa-arrow-down wi-bolt')} tramonto ${hhmm(d.sunset[i])}</span>
     </div>
+    ${pollenRow}
     <div class="hours">${hours.join('')}</div>`;
   $('#weather-detail').classList.remove('hidden');
 }
