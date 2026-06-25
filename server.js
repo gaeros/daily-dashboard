@@ -32,6 +32,18 @@ const MIME = {
 // ViaggiaTreno vuole la data nel formato di Date.prototype.toString()
 const vtDate = (d = new Date()) => encodeURIComponent(d.toString());
 
+// Versione della cache del service worker: calcolata dalle mtime dei file statici
+// chiave, così si aggiorna automaticamente a ogni deploy senza toccare sw.js.
+function computeCacheVersion() {
+  const files = ['index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg', 'sw.js'];
+  let stamp = 0;
+  for (const f of files) {
+    try { stamp += fs.statSync(path.join(ROOT, f)).mtimeMs; } catch {}
+  }
+  return stamp.toString(36);
+}
+const CACHE_VERSION = computeCacheVersion();
+
 // ---- Cache breve delle risposte API ----
 // Se più dispositivi guardano la stessa stazione o le stesse notizie,
 // una sola richiesta raggiunge il servizio a monte.
@@ -322,9 +334,11 @@ function serveStatic(req, res, url) {
   if (!filePath.startsWith(ROOT + path.sep) && filePath !== ROOT) { res.writeHead(403); return res.end(); }
   if (url.pathname === '/' || !path.extname(filePath)) filePath = path.join(ROOT, 'index.html');
 
-  fs.readFile(filePath, (err, data) => {
+  fs.readFile(filePath, url.pathname === '/sw.js' ? 'utf8' : null, (err, data) => {
     if (err) { res.writeHead(404); return res.end('Not found'); }
     const ext = path.extname(filePath);
+    // Inietta la versione calcolata all'avvio nel placeholder del service worker.
+    if (url.pathname === '/sw.js') data = data.replace('__CACHE_VERSION__', CACHE_VERSION);
     res.writeHead(200, {
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
