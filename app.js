@@ -286,14 +286,19 @@ async function searchCity(q) {
 }
 
 $('#btn-geolocate').addEventListener('click', () => {
-  if (!navigator.geolocation) return alert('Geolocalizzazione non supportata.');
+  const geoError = $('#geo-error');
+  if (!navigator.geolocation) {
+    geoError.textContent = 'Geolocalizzazione non supportata da questo browser.';
+    return;
+  }
+  geoError.textContent = '';
   navigator.geolocation.getCurrentPosition(
     (pos) => setCity({
       name: 'La mia posizione',
       latitude: +pos.coords.latitude.toFixed(3),
       longitude: +pos.coords.longitude.toFixed(3),
     }),
-    () => alert('Impossibile ottenere la posizione.'),
+    () => { geoError.textContent = 'Impossibile ottenere la posizione. Verifica i permessi del browser.'; },
   );
 });
 
