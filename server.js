@@ -72,6 +72,13 @@ function cacheSet(key, ttl, body) {
   apiCache.set(key, { body, expires: Date.now() + ttl });
 }
 
+// Pulizia periodica: rimuove gli entry scaduti ogni ora anche se la mappa
+// non supera la soglia dei 500 elementi (server che gira a lungo).
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of apiCache) if (v.expires <= now) apiCache.delete(k);
+}, 3_600_000).unref();
+
 // ---- Rate limit elementare per IP ----
 // Protegge i servizi a monte se l'URL diventa raggiungibile da Internet.
 const RATE_LIMIT = 60; // richieste /api/ al minuto per IP
