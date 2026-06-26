@@ -143,13 +143,30 @@ function rssItems(xml, max = 10) {
   };
   // La descrizione può contenere markup: via i tag, e tronca a misura di sommario.
   const strip = (s) => s.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-  return [...xml.matchAll(/<item[\s>]([\s\S]*?)<\/item>/gi)]
-    .map((m) => ({
-      title: tag(m[1], 'title'),
-      link: tag(m[1], 'link'),
-      date: tag(m[1], 'pubDate'),
-      desc: strip(tag(m[1], 'description')).slice(0, 220),
-    }))
+  // In Atom il link è un attributo href: si preferisce rel="alternate".
+  const atomLink = (entry) => {
+    const links = [...entry.matchAll(/<link\b[^>]*>/gi)].map((m) => m[0]);
+    const chosen = links.find((l) => /rel=["']alternate["']/i.test(l))
+      || links.find((l) => !/\brel=/i.test(l)) || links[0] || '';
+    const m = chosen.match(/href=["']([^"']+)["']/i);
+    return m ? decode(m[1]) : '';
+  };
+  // RSS 2.0 usa <item>; Atom usa <entry> con tag e link diversi.
+  const isAtom = /<entry[\s>]/i.test(xml) && !/<item[\s>]/i.test(xml);
+  const items = isAtom
+    ? [...xml.matchAll(/<entry[\s>]([\s\S]*?)<\/entry>/gi)].map((m) => ({
+        title: tag(m[1], 'title'),
+        link: atomLink(m[1]),
+        date: tag(m[1], 'updated') || tag(m[1], 'published'),
+        desc: strip(tag(m[1], 'summary') || tag(m[1], 'content')).slice(0, 220),
+      }))
+    : [...xml.matchAll(/<item[\s>]([\s\S]*?)<\/item>/gi)].map((m) => ({
+        title: tag(m[1], 'title'),
+        link: tag(m[1], 'link'),
+        date: tag(m[1], 'pubDate'),
+        desc: strip(tag(m[1], 'description')).slice(0, 220),
+      }));
+  return items
     .filter((i) => i.title && /^https:\/\//.test(i.link))
     .slice(0, max);
 }
@@ -408,7 +425,7 @@ function serveStatic(req, res, url) {
   });
 }
 
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   // Una richiesta malformata (es. percent-encoding non valido) non deve abbattere il server.
   try {
     const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -424,6 +441,14 @@ http.createServer((req, res) => {
     res.writeHead(400, SECURITY_HEADERS);
     res.end('Bad request');
   }
-}).listen(PORT, () => {
-  console.log(`Daily Dashboard su http://localhost:${PORT}`);
 });
+
+// Avvia il server solo se eseguito direttamente: così i test possono
+// importare le funzioni pure senza aprire una porta.
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`Daily Dashboard su http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { rssItems, computeCacheVersion, NEWS_SOURCES };

@@ -5,7 +5,7 @@
   --bg: #f4f6fb;
   --card: #ffffff;
   --text: #1c1e26;
-  --muted: #6b7280;
+  --muted: #5f6673; /* scurito per superare il contrasto AA su --bg (>=4.5:1) */
   --accent: #1a73e8;
   --accent-soft: #e8f0fe;
   --danger: #d93025;
