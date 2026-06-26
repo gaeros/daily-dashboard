@@ -59,7 +59,7 @@ async function loadWeather() {
     '&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m' +
     '&timezone=auto&forecast_days=7';
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     renderWeather(data);
@@ -103,7 +103,7 @@ async function loadAirQuality() {
     '&hourly=grass_pollen,birch_pollen,olive_pollen,ragweed_pollen,alder_pollen,mugwort_pollen' +
     '&timezone=auto&forecast_days=7';
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     airData = await res.json();
     renderAirQuality(airData);
@@ -255,6 +255,13 @@ function renderWeatherDetail(i) {
 }
 
 // ---------- Tema (auto / chiaro / scuro) ----------
+// Allinea il colore della barra del browser (e dell'area di sistema della PWA)
+// allo sfondo del tema effettivo, leggendo --bg dopo l'applicazione del tema.
+function updateThemeColor() {
+  const meta = $('#theme-color-meta');
+  if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+}
+
 function applyTheme(theme) {
   if (theme === 'auto') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', theme);
@@ -263,6 +270,7 @@ function applyTheme(theme) {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', active);
   });
+  updateThemeColor();
 }
 
 const savedTheme = store.get('theme', 'auto');
@@ -274,6 +282,12 @@ document.querySelectorAll('.theme-btn').forEach((btn) => {
     store.set('theme', theme);
     applyTheme(theme);
   });
+});
+
+// In modalità auto il tema segue il sistema: se cambia mentre l'app è aperta,
+// riapplichiamo per aggiornare anche il theme-color.
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (store.get('theme', 'auto') === 'auto') applyTheme('auto');
 });
 
 // ---------- Ricerca città / geolocalizzazione ----------
