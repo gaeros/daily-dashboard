@@ -293,8 +293,35 @@ async function handleApi(req, res, url) {
         const d = new Date(ms); d.setHours(0, 0, 0, 0);
         return d.getTime() === todayMid.getTime();
       };
+      // 1° passaggio: raccogli i treni di oggi che richiedono un lookup (max 10).
+      const todayCandidates = [];
+      for (const t of board) {
+        if (!t.numeroTreno || !t.codOrigine || !t.dataPartenzaTreno) continue;
+        if (isToday(t.dataPartenzaTreno)) {
+          todayCandidates.push(t);
+          if (todayCandidates.length >= 10) break;
+        }
+      }
+
+      // 2° passaggio: fetch parallelo in batch da 4 per ridurre la latenza totale.
+      const BATCH = 4;
+      const fetched = new Map(); // chiave: "numero-data" → dati andamento (o null se fallito)
+      for (let i = 0; i < todayCandidates.length; i += BATCH) {
+        const slice = todayCandidates.slice(i, i + BATCH);
+        const results = await Promise.allSettled(
+          slice.map((t) => vtFetch(
+            `${VT_BASE}/andamentoTreno/${t.codOrigine}/${t.numeroTreno}/${t.dataPartenzaTreno}`)
+            .then((text) => JSON.parse(text))));
+        slice.forEach((t, idx) => {
+          fetched.set(`${t.numeroTreno}-${t.dataPartenzaTreno}`,
+            results[idx].status === 'fulfilled' ? results[idx].value : null);
+        });
+      }
+
+      // 3° passaggio: scorri il tabellone in ordine e componi le soluzioni usando
+      // i dati già in memoria — nessuna ulteriore chiamata di rete.
       const sols = [];
-      let lookups = 0;
+      let todayCount = 0;
       for (const t of board) {
         if (sols.length >= 3) break;
         if (!t.numeroTreno || !t.codOrigine || !t.dataPartenzaTreno) continue;
@@ -309,34 +336,32 @@ async function handleApi(req, res, url) {
           }
           continue;
         }
-        if (++lookups > 10) break; // tetto alle chiamate verso ViaggiaTreno
-        try {
-          const a = JSON.parse(await vtFetch(
-            `${VT_BASE}/andamentoTreno/${t.codOrigine}/${t.numeroTreno}/${t.dataPartenzaTreno}`));
-          const stops = a.fermate || [];
-          if (!stops.length) { // attivazione non ancora avvenuta: vale il capolinea
-            if (terminusMatch(t)) {
-              sols.push({
-                treno: trainLabel(t), partenza: t.compOrarioPartenza || null, arrivo: null,
-                ritardo: null, binario: t.binarioProgrammatoPartenzaDescrizione || null,
-                circolante: false, programmato: true,
-              });
-            }
-            continue;
+        if (todayCount++ >= 10) break;
+        const a = fetched.get(`${t.numeroTreno}-${t.dataPartenzaTreno}`);
+        if (!a) continue; // fetch fallito: salta il treno senza interrompere
+        const stops = a.fermate || [];
+        if (!stops.length) { // attivazione non ancora avvenuta: vale il capolinea
+          if (terminusMatch(t)) {
+            sols.push({
+              treno: trainLabel(t), partenza: t.compOrarioPartenza || null, arrivo: null,
+              ritardo: null, binario: t.binarioProgrammatoPartenzaDescrizione || null,
+              circolante: false, programmato: true,
+            });
           }
-          const iFrom = stops.findIndex((f) => f.id === from);
-          const iTo = stops.findIndex((f) => f.id === to);
-          if (iFrom === -1 || iTo === -1 || iTo <= iFrom) continue;
-          if (stops[iFrom].actualFermataType === 3 || stops[iTo].actualFermataType === 3) continue;
-          sols.push({
-            treno: trainLabel(t),
-            partenza: fmt(stops[iFrom].partenza_teorica),
-            arrivo: fmt(stops[iTo].arrivo_teorico),
-            ritardo: a.ritardo,
-            binario: t.binarioEffettivoPartenzaDescrizione || t.binarioProgrammatoPartenzaDescrizione || null,
-            circolante: t.circolante,
-          });
-        } catch { /* un treno non consultabile non blocca la ricerca degli altri */ }
+          continue;
+        }
+        const iFrom = stops.findIndex((f) => f.id === from);
+        const iTo = stops.findIndex((f) => f.id === to);
+        if (iFrom === -1 || iTo === -1 || iTo <= iFrom) continue;
+        if (stops[iFrom].actualFermataType === 3 || stops[iTo].actualFermataType === 3) continue;
+        sols.push({
+          treno: trainLabel(t),
+          partenza: fmt(stops[iFrom].partenza_teorica),
+          arrivo: fmt(stops[iTo].arrivo_teorico),
+          ritardo: a.ritardo,
+          binario: t.binarioEffettivoPartenzaDescrizione || t.binarioProgrammatoPartenzaDescrizione || null,
+          circolante: t.circolante,
+        });
       }
       return sendCachedJson(res, key, ttl, sols);
     }
