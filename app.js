@@ -1176,11 +1176,12 @@ function renderRouteOne(r) {
 // ---------- Riepilogo mattutino ----------
 // Tra le 6 e le 10 l'app dà il buongiorno: meteo di oggi, primo impegno,
 // primo treno della tratta preferita. Chiudibile per il resto della giornata.
-function renderMorning() {
+function renderMorning(force = false) {
   const now = new Date();
   const inWindow = now.getHours() >= 6 && now.getHours() < 10;
   const dismissed = store.get('morningDismissed', '') === toISO(now);
-  const show = inWindow && !dismissed;
+  // Riaperto a mano dalle impostazioni: ignora finestra oraria e flag di chiusura.
+  const show = force || (inWindow && !dismissed);
   $('#morning').classList.toggle('hidden', !show);
   if (!show) return;
 
@@ -1212,6 +1213,14 @@ function renderMorning() {
 $('#morning-close').addEventListener('click', () => {
   store.set('morningDismissed', toISO(new Date()));
   $('#morning').classList.add('hidden');
+});
+
+// Riapri a mano il riepilogo dalle impostazioni, a qualsiasi ora.
+$('#btn-show-morning').addEventListener('click', () => {
+  store.set('morningDismissed', '');
+  renderMorning(true);
+  settingsDialog.close();
+  $('#morning').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 });
 
 // ---------- Notizie (feed RSS ANSA via proxy locale) ----------
