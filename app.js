@@ -254,6 +254,28 @@ function renderWeatherDetail(i) {
   $('#weather-detail').classList.remove('hidden');
 }
 
+// ---------- Tema (auto / chiaro / scuro) ----------
+function applyTheme(theme) {
+  if (theme === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', theme);
+  document.querySelectorAll('.theme-btn').forEach((btn) => {
+    const active = btn.dataset.theme === theme;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active);
+  });
+}
+
+const savedTheme = store.get('theme', 'auto');
+applyTheme(savedTheme);
+
+document.querySelectorAll('.theme-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const theme = btn.dataset.theme;
+    store.set('theme', theme);
+    applyTheme(theme);
+  });
+});
+
 // ---------- Ricerca città / geolocalizzazione ----------
 const settingsDialog = $('#settings-dialog');
 $('#btn-settings').addEventListener('click', () => settingsDialog.showModal());
@@ -1428,7 +1450,7 @@ setInterval(checkDeadlines, 30_000);
 // ---------- Backup: export / import dei dati ----------
 // Tutto vive nel localStorage: questo è l'unico modo per non perderlo cambiando
 // dispositivo o pulendo il browser. Si esportano i dati, non lo stato volatile.
-const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'notifyEnabled', 'todoView'];
+const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'notifyEnabled', 'todoView', 'theme'];
 
 $('#btn-export').addEventListener('click', () => {
   const data = { app: 'daily-dashboard', version: 1, exported: new Date().toISOString() };
