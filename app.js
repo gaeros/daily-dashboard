@@ -382,11 +382,37 @@ function isOverdue(t, todayISO) {
   return !!t.time && t.time < new Date().toTimeString().slice(0, 5);
 }
 
+// Filtro agenda: non persistito, si azzera al ricaricamento.
+let todoFilterQ = '';
+let todoFilterPrio = '';
+
+$('#todo-search').addEventListener('input', (e) => {
+  todoFilterQ = e.target.value.trim().toLowerCase();
+  renderTodos();
+});
+
+document.querySelectorAll('.prio-filter').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    todoFilterPrio = btn.dataset.prio;
+    document.querySelectorAll('.prio-filter').forEach((b) => {
+      const active = b.dataset.prio === todoFilterPrio;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active);
+    });
+    renderTodos();
+  });
+});
+
 function renderTodos() {
   // L'ordine è manuale (trascinamento o frecce): il sort stabile tiene
   // l'ordine dell'array e porta solo le completate in fondo.
-  const sorted = [...todos].sort((a, b) => a.done - b.done);
+  let sorted = [...todos].sort((a, b) => a.done - b.done);
 
+  // Applica filtro testo e priorità (solo in vista lista).
+  if (todoFilterQ) sorted = sorted.filter((t) => t.text.toLowerCase().includes(todoFilterQ));
+  if (todoFilterPrio) sorted = sorted.filter((t) => (t.priority || 'normale') === todoFilterPrio);
+
+  const isFiltered = todoFilterQ || todoFilterPrio;
   const todayISO = toISO(today);
   $('#todo-list').innerHTML = sorted.map((t) => {
     const overdue = isOverdue(t, todayISO);
@@ -410,6 +436,8 @@ function renderTodos() {
 
   const open = todos.filter((t) => !t.done).length;
   $('#todo-counter').textContent = todos.length ? `${open} da fare` : '';
+  // Messaggio "nessun risultato" quando il filtro è attivo ma non trova nulla.
+  $('#todo-no-results').classList.toggle('hidden', !(isFiltered && !sorted.length));
   renderWeek();
   applyTodoView();
   renderSummary();
@@ -562,10 +590,11 @@ function applyTodoView() {
   $('#todo-view-week').classList.toggle('active', week);
   $('#todo-view-list').setAttribute('aria-pressed', !week);
   $('#todo-view-week').setAttribute('aria-pressed', week);
-  // Il messaggio "nessuna attività" ha senso solo nella lista.
+  // Il messaggio "nessuna attività" e il filtro hanno senso solo nella lista.
   $('#todo-empty').classList.toggle('hidden', week || todos.length > 0);
-  // Riordinare per scadenza agisce sulla lista: in vista settimana è inutile.
   $('#todo-sort').classList.toggle('hidden', week);
+  // Mostra la barra filtro solo in vista lista e solo se ci sono attività.
+  $('#todo-filter').classList.toggle('hidden', week || todos.length === 0);
 }
 
 function renderWeek() {

@@ -487,6 +487,20 @@ li.active-station { outline: 2px solid var(--accent); }
   font-size: .85rem;
   padding: 6px 8px;
 }
+.todo-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.todo-filter input[type="search"] {
+  font-size: .85rem;
+  padding: 5px 10px;
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
 /* "Cosa devi fare?" compatto: non si stira all'altezza dei campi con etichetta */
 #todo-form input[type="text"] {
   font-size: .85rem;

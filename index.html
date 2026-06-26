@@ -94,9 +94,20 @@
         </div>
         <button type="submit">Aggiungi</button>
       </form>
+      <div id="todo-filter" class="todo-filter hidden">
+        <label class="sr-only" for="todo-search">Cerca attività</label>
+        <input type="search" id="todo-search" placeholder="Cerca…" maxlength="80" autocomplete="off">
+        <div class="board-tabs" role="group" aria-label="Filtra per priorità">
+          <button type="button" class="tab prio-filter active" data-prio="" aria-pressed="true">Tutte</button>
+          <button type="button" class="tab prio-filter" data-prio="alta" aria-pressed="false">Alta</button>
+          <button type="button" class="tab prio-filter" data-prio="normale" aria-pressed="false">Normale</button>
+          <button type="button" class="tab prio-filter" data-prio="bassa" aria-pressed="false">Bassa</button>
+        </div>
+      </div>
       <ul id="todo-list"></ul>
       <div id="todo-week" class="todo-week hidden"></div>
       <p id="todo-empty" class="muted hidden">Nessuna attività. Aggiungine una! <i class="fa-solid fa-circle-check" aria-hidden="true"></i></p>
+      <p id="todo-no-results" class="muted hidden">Nessun risultato per i filtri applicati.</p>
     </section>
 
     <!-- Lista della spesa -->
