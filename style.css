@@ -256,6 +256,7 @@ form button {
 button:hover { filter: brightness(1.1); }
 .icon-btn {
   background: transparent;
+  color: var(--text);
   font-size: 1.3rem;
   padding: 6px;
 }
