@@ -452,6 +452,14 @@ li.active-station { outline: 2px solid var(--accent); }
 .week-day.today .week-day-head { color: var(--accent); }
 .week-day ul { gap: 4px; }
 .week-day li { padding: 6px 8px; background: var(--card); }
+/* Il testo dell'attività nella settimana è un bottone che sembra testo:
+   cliccarlo apre la modifica. */
+.edit-trigger {
+  background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; text-align: left;
+  cursor: pointer; width: 100%;
+}
+.edit-trigger:hover { text-decoration: underline; }
 .week-empty { margin: 2px 0 0; font-size: .85rem; }
 .week-note { margin: 4px 0 0; }
 

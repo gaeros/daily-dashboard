@@ -423,9 +423,44 @@ function todoListClick(e) {
   const id = +li.dataset.id;
   if (e.target.matches('input[type="checkbox"]')) setTodoDone(id, e.target.checked);
   else if (e.target.closest('.del')) deleteTodo(id);
+  else if (e.target.closest('.edit-trigger')) openEditTodo(id);
 }
 $('#todo-list').addEventListener('click', todoListClick);
 $('#todo-week').addEventListener('click', todoListClick);
+
+// --- Modifica di un'attività (dalla vista settimana) ---
+const editDialog = $('#edit-dialog');
+let editingId = null;
+
+function openEditTodo(id) {
+  const t = todos.find((t) => t.id === id);
+  if (!t) return;
+  editingId = id;
+  $('#edit-text').value = t.text;
+  $('#edit-date').value = t.due || '';
+  $('#edit-time').value = t.time || '';
+  $('#edit-priority').value = t.priority || 'normale';
+  $('#edit-repeat').value = t.repeat || 'none';
+  editDialog.showModal();
+}
+
+$('#edit-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const t = todos.find((t) => t.id === editingId);
+  if (!t) { editDialog.close(); return; }
+  const repeat = $('#edit-repeat').value;
+  t.text = $('#edit-text').value.trim();
+  // Una ricorrenza ha bisogno di un giorno di partenza: se manca, parte da oggi.
+  t.due = $('#edit-date').value || (repeat !== 'none' ? toISO(today) : null);
+  t.time = $('#edit-time').value || null;
+  t.priority = $('#edit-priority').value;
+  t.repeat = repeat;
+  store.set('todos', todos);
+  editDialog.close();
+  renderTodos();
+});
+
+$('#edit-cancel').addEventListener('click', () => editDialog.close());
 
 // --- Riordino dell'agenda (solo vista lista): manico per trascinare, frecce su/giù ---
 function applyTodoOrder() {
@@ -531,7 +566,7 @@ function renderWeek() {
             const overdue = isOverdue(t, todayISO);
             return `<li class="${t.done ? 'done' : ''} ${overdue ? 'overdue' : ''}" data-id="${t.id}">
               <input type="checkbox" ${t.done ? 'checked' : ''} aria-label="Completa: ${escapeHtml(t.text)}">
-              <span class="grow">${t.time ? `<strong>${t.time}</strong> ` : ''}${escapeHtml(t.text)}</span>
+              <button type="button" class="grow edit-trigger" aria-label="Modifica: ${escapeHtml(t.text)}">${t.time ? `<strong>${t.time}</strong> ` : ''}${escapeHtml(t.text)}</button>
               <button class="del" aria-label="Elimina: ${escapeHtml(t.text)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
             </li>`;
           }).join('')}</ul>`

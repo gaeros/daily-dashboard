@@ -255,6 +255,45 @@
     </form>
   </dialog>
 
+  <!-- Dialog modifica attività -->
+  <dialog id="edit-dialog">
+    <h2>Modifica attività</h2>
+    <form id="edit-form">
+      <label class="sr-only" for="edit-text">Testo dell'attività</label>
+      <input type="text" id="edit-text" placeholder="Cosa devi fare?" required maxlength="120">
+      <div class="field">
+        <label for="edit-date">Giorno</label>
+        <input type="date" id="edit-date">
+      </div>
+      <div class="field">
+        <label for="edit-time">Ora</label>
+        <input type="time" id="edit-time">
+      </div>
+      <div class="field">
+        <label for="edit-priority">Priorità</label>
+        <select id="edit-priority">
+          <option value="normale">Normale</option>
+          <option value="alta">Alta</option>
+          <option value="bassa">Bassa</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="edit-repeat">Ripeti</label>
+        <select id="edit-repeat">
+          <option value="none">Mai</option>
+          <option value="daily">Ogni giorno</option>
+          <option value="weekdays">Lun–Ven</option>
+          <option value="weekly">Ogni settimana</option>
+          <option value="monthly">Ogni mese</option>
+        </select>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="edit-cancel">Annulla</button>
+        <button type="submit">Salva</button>
+      </div>
+    </form>
+  </dialog>
+
   <footer>
     <p class="muted">Dati meteo: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · Dati treni: ViaggiaTreno (Trenitalia) · Notizie: <a href="https://www.ansa.it" target="_blank" rel="noopener">ANSA</a> · I tuoi dati restano sul dispositivo</p>
     <p class="muted">Progetto didattico senza scopo di lucro · I dati di terze parti restano di proprietà dei rispettivi titolari</p>
