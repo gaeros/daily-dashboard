@@ -518,6 +518,7 @@ li.active-station { outline: 2px solid var(--accent); }
 }
 
 .news-header-side { display: flex; align-items: center; gap: 8px; }
+.news-source { font-size: .85rem; padding: 4px 6px; max-width: 11rem; }
 #news-toggle { font-size: 1rem; padding: 2px 6px; color: var(--muted); }
 .news-tabs { flex-wrap: wrap; margin-bottom: 10px; }
 .news-tabs .tab.active {

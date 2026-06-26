@@ -204,7 +204,12 @@
       <div class="card-header">
         <h2><i class="fa-solid fa-newspaper wi-news" aria-hidden="true"></i> Ultime notizie</h2>
         <span class="news-header-side">
-          <span class="muted wi-news">ANSA</span>
+          <label class="sr-only" for="news-source">Fonte delle notizie</label>
+          <select id="news-source" class="news-source wi-news" aria-label="Fonte delle notizie">
+            <option value="ansa">ANSA</option>
+            <option value="repubblica">la Repubblica</option>
+            <option value="corriere">Corriere della Sera</option>
+          </select>
           <button type="button" id="news-toggle" class="icon-btn" aria-expanded="true" aria-controls="news-body" aria-label="Comprimi le notizie"><i class="fa-solid fa-chevron-up" aria-hidden="true"></i></button>
         </span>
       </div>
@@ -295,7 +300,7 @@
   </dialog>
 
   <footer>
-    <p class="muted">Dati meteo: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · Dati treni: ViaggiaTreno (Trenitalia) · Notizie: <a href="https://www.ansa.it" target="_blank" rel="noopener">ANSA</a> · I tuoi dati restano sul dispositivo</p>
+    <p class="muted">Dati meteo: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · Dati treni: ViaggiaTreno (Trenitalia) · Notizie: ANSA, la Repubblica, Corriere della Sera · I tuoi dati restano sul dispositivo</p>
     <p class="muted">Progetto didattico senza scopo di lucro · I dati di terze parti restano di proprietà dei rispettivi titolari</p>
   </footer>
 

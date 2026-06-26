@@ -1258,9 +1258,11 @@ $('#btn-show-morning').addEventListener('click', () => {
   $('#morning').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 });
 
-// ---------- Notizie (feed RSS ANSA via proxy locale) ----------
+// ---------- Notizie (feed RSS via proxy locale) ----------
 let newsFeed = store.get('newsFeed', 'top');
+let newsSource = store.get('newsSource', 'ansa');
 let newsCollapsed = store.get('newsCollapsed', true);
+$('#news-source').value = newsSource;
 
 function applyNewsCollapsed() {
   $('#news-body').classList.toggle('hidden', newsCollapsed);
@@ -1285,6 +1287,11 @@ document.querySelectorAll('.news-tabs [data-feed]').forEach((btn) => {
     loadNews();
   });
 });
+$('#news-source').addEventListener('change', (e) => {
+  newsSource = e.target.value;
+  store.set('newsSource', newsSource);
+  loadNews();
+});
 $('#news-refresh').addEventListener('click', () => loadNews());
 
 // "2 h fa", "35 min fa", oppure la data se è roba di ieri o prima.
@@ -1307,7 +1314,7 @@ async function loadNews(silent = false) {
   });
   if (!silent) $('#news-content').innerHTML = '<p class="muted">Caricamento notizie…</p>';
   try {
-    const res = await fetch(`/api/news?feed=${newsFeed}`);
+    const res = await fetch(`/api/news?source=${newsSource}&feed=${newsFeed}`);
     if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
     renderNews(await res.json());
   } catch (err) {
@@ -1421,7 +1428,7 @@ setInterval(checkDeadlines, 30_000);
 // ---------- Backup: export / import dei dati ----------
 // Tutto vive nel localStorage: questo è l'unico modo per non perderlo cambiando
 // dispositivo o pulendo il browser. Si esportano i dati, non lo stato volatile.
-const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'city', 'newsFeed', 'newsCollapsed', 'notifyEnabled', 'todoView'];
+const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'notifyEnabled', 'todoView'];
 
 $('#btn-export').addEventListener('click', () => {
   const data = { app: 'daily-dashboard', version: 1, exported: new Date().toISOString() };

@@ -10,7 +10,7 @@ I dati mostrati dall'app provengono da servizi esterni e **restano di proprietà
 
 - **Meteo e geocoding** — [Open-Meteo](https://open-meteo.com): i dati appartengono a Open-Meteo e ai suoi fornitori, usati secondo i termini del servizio (gratuito per uso non commerciale).
 - **Treni in tempo reale** — API ViaggiaTreno di **Trenitalia / Gruppo FS Italiane**: orari, ritardi e binari appartengono a Trenitalia. Le API non sono documentate ufficialmente; il server incluso si limita a inoltrarle per la consultazione personale, senza memorizzarle né redistribuirle.
-- **Notizie** — feed RSS pubblici dell'**ANSA**: titoli e contenuti appartengono ad ANSA; l'app mostra solo titolo, data e link che rimanda all'articolo originale su ansa.it.
+- **Notizie** — feed RSS pubblici di **ANSA**, **la Repubblica** e **Corriere della Sera**: titoli e contenuti appartengono ai rispettivi editori; l'app mostra solo titolo, data e link che rimanda all'articolo originale sul sito della testata.
 
 Questo progetto non è affiliato, sponsorizzato o approvato da Trenitalia, Gruppo FS Italiane, Open-Meteo o ANSA. L'uso delle API e dei feed è limitato a scopo personale e di studio.
 
@@ -46,7 +46,7 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 - **Lista della spesa**: spunta gli articoli man mano che li prendi (scendono in fondo), rimuovili tutti insieme con un tap quando hai finito, riordinali trascinandoli dal manico (anche su touch) o con le frecce su/giù da tastiera. L'app impara cosa compri più spesso e te lo ripropone come suggerimento con un tap ("Compri spesso: + Latte").
 - **Interfaccia compatta**: meteo, agenda e form occupano poco spazio verticale; tutti i pulsanti hanno la stessa dimensione e i campi di partenza/arrivo della tratta restano sempre visibili per cambiarla al volo.
 - **Accessibilità**: etichette visibili o per screen reader su tutti i controlli, navigazione completa da tastiera (risultati di ricerca come pulsanti), `aria-live` sugli aggiornamenti dinamici, contrasti conformi WCAG AA e controlli nativi (date/time picker) leggibili anche in tema scuro grazie a `color-scheme`.
-- **Ultime notizie** (feed RSS ANSA, via proxy): titoli con categoria a scelta (top, mondo, economia, sport, tecnologia), link all'articolo originale, aggiornamento automatico ogni 10 minuti. Il widget è **richiudibile** (chiuso di default) e ricorda lo stato: da chiuso non scarica nulla.
+- **Ultime notizie** (feed RSS via proxy): **fonte a scelta** (ANSA, la Repubblica, Corriere della Sera) e categoria a scelta (top, mondo, economia, sport, tecnologia), link all'articolo originale, aggiornamento automatico ogni 10 minuti. La fonte selezionata viene ricordata. Il widget è **richiudibile** (chiuso di default) e ricorda lo stato: da chiuso non scarica nulla.
 - **Riepilogo intelligente**: avvisi automatici (pioggia in arrivo, scadenze di oggi, attività in ritardo).
 - **Backup dei dati**: da ⚙️ esporti agenda, spesa, stazioni, tratta e città in un file JSON e li reimporti (anche su un altro dispositivo). È l'unico ponte fuori dal localStorage del singolo browser.
 - **Offline**: il service worker mantiene l'app utilizzabile senza rete, con l'ultimo meteo in cache.

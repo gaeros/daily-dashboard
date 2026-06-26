@@ -9,13 +9,39 @@ const PORT = process.env.PORT || 8741;
 const ROOT = __dirname;
 const VT_BASE = 'http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno';
 
-// Feed RSS ANSA consentiti: whitelist chiusa, il client sceglie solo la chiave.
-const NEWS_FEEDS = {
-  top: 'https://www.ansa.it/sito/notizie/topnews/topnews_rss.xml',
-  mondo: 'https://www.ansa.it/sito/notizie/mondo/mondo_rss.xml',
-  economia: 'https://www.ansa.it/sito/notizie/economia/economia_rss.xml',
-  sport: 'https://www.ansa.it/sito/notizie/sport/sport_rss.xml',
-  tecnologia: 'https://www.ansa.it/sito/notizie/tecnologia/tecnologia_rss.xml',
+// Feed RSS consentiti: whitelist chiusa per fonte e categoria. Il client
+// sceglie solo le chiavi (source + feed), mai un URL arbitrario.
+const NEWS_SOURCES = {
+  ansa: {
+    label: 'ANSA',
+    feeds: {
+      top: 'https://www.ansa.it/sito/notizie/topnews/topnews_rss.xml',
+      mondo: 'https://www.ansa.it/sito/notizie/mondo/mondo_rss.xml',
+      economia: 'https://www.ansa.it/sito/notizie/economia/economia_rss.xml',
+      sport: 'https://www.ansa.it/sito/notizie/sport/sport_rss.xml',
+      tecnologia: 'https://www.ansa.it/sito/notizie/tecnologia/tecnologia_rss.xml',
+    },
+  },
+  repubblica: {
+    label: 'la Repubblica',
+    feeds: {
+      top: 'https://www.repubblica.it/rss/homepage/rss2.0.xml',
+      mondo: 'https://www.repubblica.it/rss/esteri/rss2.0.xml',
+      economia: 'https://www.repubblica.it/rss/economia/rss2.0.xml',
+      sport: 'https://www.repubblica.it/rss/sport/calcio/rss2.0.xml',
+      tecnologia: 'https://www.repubblica.it/rss/tecnologia/rss2.0.xml',
+    },
+  },
+  corriere: {
+    label: 'Corriere della Sera',
+    feeds: {
+      top: 'https://xml2.corriereobjects.it/rss/homepage.xml',
+      mondo: 'https://xml2.corriereobjects.it/rss/esteri.xml',
+      economia: 'https://xml2.corriereobjects.it/rss/economia.xml',
+      sport: 'https://xml2.corriereobjects.it/rss/sport.xml',
+      tecnologia: 'https://xml2.corriereobjects.it/rss/tecnologia.xml',
+    },
+  },
 };
 
 const MIME = {
@@ -315,9 +341,10 @@ async function handleApi(req, res, url) {
       return sendCachedJson(res, key, ttl, sols);
     }
 
-    // GET /api/news?feed=top → [{title, link, date}, …] dal feed RSS ANSA
+    // GET /api/news?source=ansa&feed=top → [{title, link, date}, …] dal feed RSS
     if (url.pathname === '/api/news') {
-      const feed = NEWS_FEEDS[url.searchParams.get('feed')] || NEWS_FEEDS.top;
+      const source = NEWS_SOURCES[url.searchParams.get('source')] || NEWS_SOURCES.ansa;
+      const feed = source.feeds[url.searchParams.get('feed')] || source.feeds.top;
       try {
         const xml = await vtFetch(feed);
         return sendCachedJson(res, key, ttl, rssItems(xml));
