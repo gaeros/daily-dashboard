@@ -874,7 +874,8 @@ let board = store.get('board', { station: null, type: 'partenze' });
 const saveBoard = () => store.set('board', board);
 
 // --- Comprimi/espandi l'intero widget treni, come per le notizie ---
-let trainsCollapsed = store.get('trainsCollapsed', false);
+// Chiuso di default: si apre al primo tocco e la scelta viene ricordata.
+let trainsCollapsed = store.get('trainsCollapsed', true);
 
 function applyTrainsCollapsed() {
   $('#trains-body').classList.toggle('hidden', trainsCollapsed);
