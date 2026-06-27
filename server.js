@@ -68,7 +68,6 @@ function computeCacheVersion() {
   }
   return stamp.toString(36);
 }
-const CACHE_VERSION = computeCacheVersion();
 
 // ---- Cache breve delle risposte API ----
 // Se più dispositivi guardano la stessa stazione o le stesse notizie,
@@ -413,8 +412,10 @@ function serveStatic(req, res, url) {
   fs.readFile(filePath, url.pathname === '/sw.js' ? 'utf8' : null, (err, data) => {
     if (err) { res.writeHead(404); return res.end('Not found'); }
     const ext = path.extname(filePath);
-    // Inietta la versione calcolata all'avvio nel placeholder del service worker.
-    if (url.pathname === '/sw.js') data = data.replace('__CACHE_VERSION__', CACHE_VERSION);
+    // Inietta la versione nel placeholder del service worker: ricalcolata a ogni
+    // richiesta dalle mtime dei file, così riflette sempre lo stato corrente
+    // (anche in sviluppo, senza dover riavviare il server).
+    if (url.pathname === '/sw.js') data = data.replace('__CACHE_VERSION__', computeCacheVersion());
     res.writeHead(200, {
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
