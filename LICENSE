@@ -1,0 +1,33 @@
+MIT License
+
+Copyright (c) 2026 gaeros
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+The MIT license above applies to the code authored for this project
+(index.html, style.css, app.js, server.js, sw.js, manifest.json, the test
+suite and the documentation).
+
+It does NOT cover the bundled third-party assets, which keep their own
+licenses (see vendor/fontawesome/LICENSE.txt and vendor/fonts/OFL.txt), nor
+the data retrieved at runtime from third-party services (Open-Meteo,
+ViaggiaTreno/Trenitalia, ANSA, la Repubblica, Corriere della Sera), which
+remain the property of their respective owners. See the README for details.

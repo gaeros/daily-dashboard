@@ -1,0 +1,9 @@
+# Configurazione locale dello strumento di sviluppo (preview)
+.claude/
+
+# Dipendenze e artefatti (il progetto non ne usa, ma per sicurezza)
+node_modules/
+
+# File di sistema
+.DS_Store
+Thumbs.db

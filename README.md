@@ -80,3 +80,11 @@ In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri
 ## Idee per il prossimo passo
 
 - Sincronizzazione tra dispositivi (richiederebbe un backend con account)
+
+## Licenza
+
+- Il **codice** di questo progetto è rilasciato sotto licenza **MIT** (vedi [`LICENSE`](LICENSE)).
+- Gli **asset di terze parti** inclusi mantengono le proprie licenze:
+  - **Font Awesome Free 6** — icone CC BY 4.0, font SIL OFL 1.1, codice MIT (vedi `vendor/fontawesome/LICENSE.txt`).
+  - **Plus Jakarta Sans** — SIL Open Font License 1.1 (vedi `vendor/fonts/OFL.txt`).
+- I **dati** recuperati a runtime (Open-Meteo, ViaggiaTreno/Trenitalia, ANSA, la Repubblica, Corriere della Sera) **non** sono coperti dalla licenza MIT e restano dei rispettivi titolari (vedi la sezione "Dati di terze parti"). In particolare Open-Meteo è gratuito solo per uso **non commerciale** e le API ViaggiaTreno non sono ufficiali: l'uso è limitato a scopo **personale e di studio**.
