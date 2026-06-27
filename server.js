@@ -60,11 +60,11 @@ const vtDate = (d = new Date()) => encodeURIComponent(d.toString());
 
 // Versione della cache del service worker: calcolata dalle mtime dei file statici
 // chiave, così si aggiorna automaticamente a ogni deploy senza toccare sw.js.
-function computeCacheVersion() {
-  const files = ['index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg', 'sw.js'];
+const CACHE_FILES = ['index.html', 'style.css', 'app.js', 'manifest.json', 'icon.svg', 'sw.js'];
+function computeCacheVersion(files = CACHE_FILES, root = ROOT) {
   let stamp = 0;
   for (const f of files) {
-    try { stamp += fs.statSync(path.join(ROOT, f)).mtimeMs; } catch {}
+    try { stamp += fs.statSync(path.join(root, f)).mtimeMs; } catch {}
   }
   return stamp.toString(36);
 }
@@ -170,6 +170,69 @@ function rssItems(xml, max = 10) {
     .slice(0, max);
 }
 
+// ---- Parsing delle risposte ViaggiaTreno (funzioni pure, testabili) ----
+
+// Orario HH:MM nel fuso di Roma (o null): indipendente dal fuso del server.
+function fmtRomeTime(ms) {
+  return ms
+    ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })
+    : null;
+}
+
+// Autocomplete stazioni: testo con righe "Nome|CODICE" → [{name, code}, …].
+function parseStations(text) {
+  return text.trim().split('\n').filter(Boolean).slice(0, 8).map((line) => {
+    const [name, code] = line.split('|');
+    return { name, code };
+  });
+}
+
+// Tabellone partenze/arrivi (testo JSON) → righe per il client.
+function parseBoard(text, type) {
+  return JSON.parse(text).slice(0, 15).map((t) => ({
+    treno: t.compNumeroTreno || `${t.categoriaDescrizione || ''} ${t.numeroTreno}`.trim(),
+    destinazione: type === 'partenze' ? t.destinazione : t.origine,
+    orario: type === 'partenze' ? t.compOrarioPartenza : t.compOrarioArrivo,
+    ritardo: t.ritardo,
+    binarioProgrammato: type === 'partenze'
+      ? t.binarioProgrammatoPartenzaDescrizione : t.binarioProgrammatoArrivoDescrizione,
+    binarioEffettivo: type === 'partenze'
+      ? t.binarioEffettivoPartenzaDescrizione : t.binarioEffettivoArrivoDescrizione,
+    circolante: t.circolante,
+  }));
+}
+
+// Ricerca treno per numero: testo con righe "Label|NUM-ORIG-MS" → candidati.
+function parseTrainMatches(text) {
+  return text.trim().split('\n').filter(Boolean).map((line) => {
+    const [label, payload] = line.split('|');
+    const [number, originCode, departureMs] = (payload || '').split('-');
+    return { label: (label || '').trim(), number, originCode, departureMs: +departureMs };
+  }).filter((m) => m.originCode);
+}
+
+// Andamento treno (oggetto JSON) → percorso fermata per fermata per il client.
+function parseTrainStatus(j, number) {
+  return {
+    treno: (j.compNumeroTreno || '').trim() || `Treno ${number}`,
+    origine: j.origine,
+    destinazione: j.destinazione,
+    ritardo: j.ritardo,
+    ultimoRilevamento: j.stazioneUltimoRilevamento
+      ? `${j.stazioneUltimoRilevamento} alle ${j.compOraUltimoRilevamento}` : null,
+    fermate: (j.fermate || []).map((f) => ({
+      stazione: f.stazione,
+      arrivoProgrammato: fmtRomeTime(f.arrivo_teorico),
+      arrivoEffettivo: fmtRomeTime(f.arrivoReale),
+      partenzaProgrammata: fmtRomeTime(f.partenza_teorica),
+      partenzaEffettiva: fmtRomeTime(f.partenzaReale),
+      ritardo: f.ritardo,
+      passata: f.actualFermataType === 1,
+      soppressa: f.actualFermataType === 3,
+    })),
+  };
+}
+
 // Header di sicurezza su ogni risposta; la CSP rende inerte un eventuale
 // XSS sfuggito e vale solo per le pagine HTML.
 const SECURITY_HEADERS = {
@@ -208,11 +271,7 @@ async function handleApi(req, res, url) {
       const q = (url.searchParams.get('q') || '').trim().toUpperCase();
       if (q.length < 2) return sendJson(res, 200, []);
       const text = await vtFetch(`${VT_BASE}/autocompletaStazione/${encodeURIComponent(q)}`);
-      const stations = text.trim().split('\n').filter(Boolean).slice(0, 8).map((line) => {
-        const [name, code] = line.split('|');
-        return { name, code };
-      });
-      return sendCachedJson(res, key, ttl, stations);
+      return sendCachedJson(res, key, ttl, parseStations(text));
     }
 
     // GET /api/board?station=S01700&type=partenze|arrivi → tabellone live
@@ -221,18 +280,7 @@ async function handleApi(req, res, url) {
       const type = url.searchParams.get('type') === 'arrivi' ? 'arrivi' : 'partenze';
       if (!/^[A-Z]\d{3,6}$/.test(station)) return sendJson(res, 400, { error: 'Codice stazione non valido' });
       const text = await vtFetch(`${VT_BASE}/${type}/${station}/${vtDate()}`);
-      const trains = JSON.parse(text).slice(0, 15).map((t) => ({
-        treno: t.compNumeroTreno || `${t.categoriaDescrizione || ''} ${t.numeroTreno}`.trim(),
-        destinazione: type === 'partenze' ? t.destinazione : t.origine,
-        orario: type === 'partenze' ? t.compOrarioPartenza : t.compOrarioArrivo,
-        ritardo: t.ritardo,
-        binarioProgrammato: type === 'partenze'
-          ? t.binarioProgrammatoPartenzaDescrizione : t.binarioProgrammatoArrivoDescrizione,
-        binarioEffettivo: type === 'partenze'
-          ? t.binarioEffettivoPartenzaDescrizione : t.binarioEffettivoArrivoDescrizione,
-        circolante: t.circolante,
-      }));
-      return sendCachedJson(res, key, ttl, trains);
+      return sendCachedJson(res, key, ttl, parseBoard(text, type));
     }
 
     // GET /api/train?q=9662 → possibili treni con quel numero
@@ -240,12 +288,7 @@ async function handleApi(req, res, url) {
       const q = (url.searchParams.get('q') || '').trim();
       if (!/^\d{1,6}$/.test(q)) return sendJson(res, 400, { error: 'Numero treno non valido' });
       const text = await vtFetch(`${VT_BASE}/cercaNumeroTrenoTrenoAutocomplete/${q}`);
-      const matches = text.trim().split('\n').filter(Boolean).map((line) => {
-        const [label, payload] = line.split('|');
-        const [number, originCode, departureMs] = (payload || '').split('-');
-        return { label: (label || '').trim(), number, originCode, departureMs: +departureMs };
-      }).filter((m) => m.originCode);
-      return sendCachedJson(res, key, ttl, matches);
+      return sendCachedJson(res, key, ttl, parseTrainMatches(text));
     }
 
     // GET /api/train-status?origin=S09218&number=9662&date=1781042400000 → percorso fermata per fermata
@@ -257,27 +300,7 @@ async function handleApi(req, res, url) {
         return sendJson(res, 400, { error: 'Parametri non validi' });
       }
       const j = JSON.parse(await vtFetch(`${VT_BASE}/andamentoTreno/${origin}/${number}/${date}`));
-      const fmt = (ms) => ms
-        ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })
-        : null;
-      return sendCachedJson(res, key, ttl, {
-        treno: (j.compNumeroTreno || '').trim() || `Treno ${number}`,
-        origine: j.origine,
-        destinazione: j.destinazione,
-        ritardo: j.ritardo,
-        ultimoRilevamento: j.stazioneUltimoRilevamento
-          ? `${j.stazioneUltimoRilevamento} alle ${j.compOraUltimoRilevamento}` : null,
-        fermate: (j.fermate || []).map((f) => ({
-          stazione: f.stazione,
-          arrivoProgrammato: fmt(f.arrivo_teorico),
-          arrivoEffettivo: fmt(f.arrivoReale),
-          partenzaProgrammata: fmt(f.partenza_teorica),
-          partenzaEffettiva: fmt(f.partenzaReale),
-          ritardo: f.ritardo,
-          passata: f.actualFermataType === 1,
-          soppressa: f.actualFermataType === 3,
-        })),
-      });
+      return sendCachedJson(res, key, ttl, parseTrainStatus(j, number));
     }
 
     // GET /api/route?from=S01700&to=S08409 → prossimi treni diretti con ritardo live.
@@ -298,9 +321,7 @@ async function handleApi(req, res, url) {
       // altro giorno operativo, di cui ViaggiaTreno non espone ancora il
       // percorso — se il capolinea coincide, basta l'orario programmato.
       const toName = (url.searchParams.get('toName') || '').trim().toUpperCase().slice(0, 60);
-      const fmt = (ms) => ms
-        ? new Date(ms).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })
-        : null;
+      const fmt = fmtRomeTime;
       const board = JSON.parse(await vtFetch(`${VT_BASE}/partenze/${from}/${vtDate(when)}`));
       const trainLabel = (t) => t.compNumeroTreno || `${t.categoriaDescrizione || ''} ${t.numeroTreno}`.trim();
       const terminusMatch = (t) => toName && (t.destinazione || '').trim().toUpperCase() === toName;
@@ -452,4 +473,7 @@ if (require.main === module) {
   });
 }
 
-module.exports = { rssItems, computeCacheVersion, NEWS_SOURCES };
+module.exports = {
+  rssItems, computeCacheVersion, NEWS_SOURCES,
+  fmtRomeTime, parseStations, parseBoard, parseTrainMatches, parseTrainStatus,
+};
