@@ -38,6 +38,18 @@ npm test
 
 In alternativa, se ti basta usarla in casa: avvia `node server.js` sul PC e apri `http://<ip-del-pc>:8741` dal telefono sulla stessa rete Wi-Fi.
 
+## ⚠️ Avvertenza per chi pubblica un'istanza pubblica
+
+Mettere online un'istanza **accessibile a chiunque** è diverso dall'usarla per sé: chi la ospita se ne assume la responsabilità. Prima di farlo, tieni presente quanto segue.
+
+- **API ViaggiaTreno non ufficiali.** Le API di Trenitalia / Gruppo FS Italiane non sono documentate né concesse in licenza per usi di terzi. Esporre un servizio pubblico che le interroga può violare i termini d'uso di Trenitalia ed esporti a una richiesta di rimozione. Il proxy incluso serve alla sola consultazione personale: sii pronto a disattivarlo se richiesto. Questo progetto **non** è affiliato, sponsorizzato o approvato da Trenitalia / Gruppo FS Italiane.
+- **Solo uso non commerciale.** Open-Meteo è gratuito unicamente per uso non commerciale: un'istanza pubblica **non** va monetizzata (niente pubblicità, abbonamenti o rivendita dei dati). Per usi commerciali servono i piani/contratti previsti dai singoli fornitori.
+- **Contenuti delle testate.** Mostra solo titolo, data, breve estratto e link all'articolo originale (come già fa l'app): non ripubblicare i contenuti integrali.
+- **Nessuna garanzia.** Il software è fornito "così com'è", senza garanzie (vedi [`LICENSE`](LICENSE)). Meteo, qualità dell'aria e dati di trasporto possono essere errati, incompleti o non aggiornati: **non usarli per decisioni critiche** (viaggi importanti, salute, sicurezza).
+- **Privacy.** I dati degli utenti restano nel loro browser (localStorage): il server non li riceve né li memorizza. Se aggiungi analytics, log con IP o un backend, valuta gli obblighi di legge applicabili (es. GDPR) e pubblica un'informativa.
+
+In sintesi: pubblicare **il codice** è sicuro; pubblicare **un servizio live** ti rende responsabile del rispetto dei termini dei fornitori. La via più tranquilla resta tenerlo **self-hosted / a uso personale**.
+
 ## Funzionalità
 
 - **Meteo** (Open-Meteo, gratuito, senza API key): condizioni attuali + previsioni a 7 giorni, con probabilità di pioggia. **Più località salvabili** con chip per passare dall'una all'altra (si aggiungono da ⚙️ con ricerca o geolocalizzazione). Tocca un giorno per il dettaglio: andamento ora per ora, pioggia attesa (probabilità e mm), vento massimo, indice UV, alba e tramonto.
