@@ -834,7 +834,9 @@ notesEl.addEventListener('input', () => {
 
 // ---------- Treni in tempo reale (ViaggiaTreno via proxy locale) ----------
 let stations = store.get('stations', []);
-let board = { station: null, type: 'partenze' };
+// Tabellone aperto: persistito così al reload si riapre da solo.
+let board = store.get('board', { station: null, type: 'partenze' });
+const saveBoard = () => store.set('board', board);
 
 // --- Comprimi/espandi l'intero widget treni, come per le notizie ---
 let trainsCollapsed = store.get('trainsCollapsed', false);
@@ -905,6 +907,7 @@ $('#station-list').addEventListener('click', (e) => {
     store.set('stations', stations);
     if (board.station?.code === code) {
       board.station = null;
+      saveBoard();
       $('#board').classList.add('hidden');
     }
     renderStations();
@@ -915,12 +918,13 @@ $('#station-list').addEventListener('click', (e) => {
 
 function openBoard(station) {
   board.station = station;
+  saveBoard();
   renderStations();
   loadBoard();
 }
 
-$('#tab-partenze').addEventListener('click', () => { board.type = 'partenze'; loadBoard(); });
-$('#tab-arrivi').addEventListener('click', () => { board.type = 'arrivi'; loadBoard(); });
+$('#tab-partenze').addEventListener('click', () => { board.type = 'partenze'; saveBoard(); loadBoard(); });
+$('#tab-arrivi').addEventListener('click', () => { board.type = 'arrivi'; saveBoard(); loadBoard(); });
 $('#board-refresh').addEventListener('click', () => loadBoard());
 
 // silent = aggiornamento automatico: niente "Caricamento…" e, se la rete
@@ -975,7 +979,8 @@ function renderBoard(trains) {
 }
 
 // ---------- Segui un treno per numero ----------
-let currentTrain = null;
+// Persistito così al reload il treno seguito si riapre da solo.
+let currentTrain = store.get('currentTrain', null);
 // Ultimo stato noto del treno seguito, per l'avviso ritardo nel riepilogo.
 let trainStatus = null;
 // Ritardo (min) per cui ho già notificato il treno seguito: evita di ripetere.
@@ -1018,6 +1023,7 @@ $('#train-form').addEventListener('submit', async (e) => {
 
 function openTrain(match) {
   currentTrain = match;
+  store.set('currentTrain', currentTrain);
   trainDelayNotified = 0;
   $('#train-number').value = '';
   loadTrain();
@@ -1026,6 +1032,7 @@ function openTrain(match) {
 $('#train-refresh').addEventListener('click', () => loadTrain());
 $('#train-close').addEventListener('click', () => {
   currentTrain = null;
+  store.set('currentTrain', null);
   trainStatus = null;
   $('#train-panel').classList.add('hidden');
   renderSummary();
@@ -1626,7 +1633,7 @@ setInterval(checkDeadlines, 30_000);
 // ---------- Backup: export / import dei dati ----------
 // Tutto vive nel localStorage: questo è l'unico modo per non perderlo cambiando
 // dispositivo o pulendo il browser. Si esportano i dati, non lo stato volatile.
-const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'trainsCollapsed', 'notifyEnabled', 'todoView', 'theme', 'notes', 'widgetOrder'];
+const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'board', 'currentTrain', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'trainsCollapsed', 'notifyEnabled', 'todoView', 'theme', 'notes', 'widgetOrder'];
 
 $('#btn-export').addEventListener('click', () => {
   const data = { app: 'daily-dashboard', version: 1, exported: new Date().toISOString() };
@@ -1773,7 +1780,13 @@ renderShopping();
 renderStations();
 renderRoutes();
 applyTrainsCollapsed();
-if (!trainsCollapsed) loadAllRoutes();
+// A widget treni aperto, ripristina tratte, tabellone e treno seguito salvati.
+// Se è chiuso, ci penserà refreshTrains() alla riapertura.
+if (!trainsCollapsed) {
+  loadAllRoutes();
+  if (board.station) loadBoard();
+  if (currentTrain) loadTrain();
+}
 updateNotifUI();
 checkDeadlines();
 loadWeather();
