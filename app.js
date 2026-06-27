@@ -1763,6 +1763,8 @@ if ('serviceWorker' in navigator) {
 // frecce su/giù da tastiera. L'ordine è salvato e rientra nel backup. I banner
 // in cima (Buongiorno, riepilogo) non hanno data-widget e restano fissi.
 const mainEl = document.querySelector('main');
+// Ordine predefinito, catturato dall'HTML prima di qualsiasi riordino salvato.
+const DEFAULT_WIDGET_ORDER = [...mainEl.querySelectorAll('section[data-widget]')].map((s) => s.dataset.widget);
 
 // Salva l'ordine visivo corrente come elenco di chiavi widget.
 function applyWidgetOrder() {
@@ -1779,6 +1781,20 @@ function restoreWidgetOrder() {
     if (el) mainEl.appendChild(el); // li riaccoda nell'ordine salvato
   });
 }
+
+// Ripristina l'ordine predefinito: dimentica quello salvato e riaccoda i widget
+// nell'ordine originale dell'HTML (i banner in cima restano dove sono).
+function resetWidgetOrder() {
+  localStorage.removeItem('widgetOrder'); // al prossimo avvio si usa l'ordine HTML
+  DEFAULT_WIDGET_ORDER.forEach((key) => {
+    const el = mainEl.querySelector(`section[data-widget="${key}"]`);
+    if (el) mainEl.appendChild(el);
+  });
+  const status = $('#reset-widgets-status');
+  if (status) status.textContent = 'Ordine predefinito ripristinato.';
+  announce('Ordine dei widget ripristinato a quello predefinito');
+}
+$('#btn-reset-widgets').addEventListener('click', resetWidgetOrder);
 
 let draggingWidget = null;
 
