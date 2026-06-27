@@ -188,9 +188,10 @@ main {
 }
 .forecast .day:hover { border-color: var(--accent); filter: none; }
 .forecast .day.selected { border-color: var(--accent); background: var(--accent-soft); }
-/* La casella di oggi ha il lato sinistro giallo, come la striscia qualità aria.
-   Longhand dopo .selected/.hover così resta visibile anche se selezionata. */
-.forecast .day.today { border-left-color: #e8a13a; }
+/* La casella di oggi ha il lato sinistro giallo (lo stesso giallo dell'icona
+   dell'app), spesso 3px come la striscia della qualità dell'aria. Longhand
+   dopo .selected/.hover così resta visibile anche quando è selezionata. */
+.forecast .day.today { border-left: 3px solid #ffd54f; }
 .forecast .day .d-icon { font-size: .98rem; display: block; margin: 1px 0; }
 .forecast .day .d-name { font-weight: 600; text-transform: capitalize; display: block; }
 .d-rain { color: var(--accent); font-size: .62rem; display: block; }
