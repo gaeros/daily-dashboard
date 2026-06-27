@@ -503,6 +503,8 @@ function renderTodos() {
   $('#todo-counter').textContent = todos.length ? `${open} da fare` : '';
   // Messaggio "nessun risultato" quando il filtro è attivo ma non trova nulla.
   $('#todo-no-results').classList.toggle('hidden', !(isFiltered && !sorted.length));
+  // "Rimuovi completate" appare solo se c'è almeno un'attività completata.
+  $('#todo-clear-done').classList.toggle('hidden', !todos.some((t) => t.done));
   renderWeek();
   applyTodoView();
   renderSummary();
@@ -542,6 +544,14 @@ function todoListClick(e) {
 }
 $('#todo-list').addEventListener('click', todoListClick);
 $('#todo-week').addEventListener('click', todoListClick);
+
+// Rimuove tutte le attività completate. Le ricorrenti non completate (che alla
+// spunta tornano "da fare" alla data successiva) non sono toccate.
+$('#todo-clear-done').addEventListener('click', () => {
+  todos = todos.filter((t) => !t.done);
+  store.set('todos', todos);
+  renderTodos();
+});
 
 // --- Modifica di un'attività (dalla vista settimana) ---
 const editDialog = $('#edit-dialog');
