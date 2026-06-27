@@ -1752,6 +1752,21 @@ function refreshTrains() {
 setInterval(refreshTrains, REFRESH_MS);
 document.addEventListener('visibilitychange', refreshTrains);
 
+// ---------- Indicatore di stato offline ----------
+// Mostra una striscia quando manca la rete; alla riconnessione la nasconde e
+// rilancia gli aggiornamenti (meteo, treni visibili, notizie aperte).
+function updateOnlineStatus() {
+  $('#offline-banner').classList.toggle('hidden', navigator.onLine);
+}
+window.addEventListener('offline', updateOnlineStatus);
+window.addEventListener('online', () => {
+  updateOnlineStatus();
+  loadWeather();
+  refreshTrains();
+  if (!newsCollapsed) loadNews(true);
+});
+updateOnlineStatus();
+
 // ---------- Service worker ----------
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch((err) => console.warn('SW:', err));
