@@ -179,7 +179,7 @@ function renderWeather(data) {
     const [dIcon, dLabel] = wc(d.weather_code[i]);
     const rain = d.precipitation_probability_max[i];
     const longName = day.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
-    return `<button type="button" class="day" data-i="${i}" aria-expanded="false"
+    return `<button type="button" class="day${i === 0 ? ' today' : ''}" data-i="${i}" aria-expanded="false"
       aria-label="Dettaglio meteo di ${i === 0 ? 'oggi' : longName}: ${dLabel}">
       <span class="d-name">${name}</span>
       <span class="d-icon" aria-hidden="true">${dIcon}</span>
