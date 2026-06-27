@@ -131,6 +131,16 @@
       <button type="button" id="shopping-clear" class="tab hidden">Rimuovi articoli presi</button>
     </section>
 
+    <!-- Note rapide -->
+    <section class="card">
+      <div class="card-header">
+        <h2><i class="fa-solid fa-note-sticky wi-sun" aria-hidden="true"></i> Note rapide</h2>
+        <span id="notes-status" class="muted" aria-live="polite"></span>
+      </div>
+      <label class="sr-only" for="notes-text">Note libere</label>
+      <textarea id="notes-text" class="notes-text" placeholder="Pensieri, idee, promemoria al volo… si salvano da soli sul dispositivo." maxlength="5000"></textarea>
+    </section>
+
     <!-- Treni -->
     <section class="card section-trains">
       <div class="card-header">
@@ -273,7 +283,7 @@
         <button type="button" id="btn-import"><i class="fa-solid fa-upload" aria-hidden="true"></i> Importa</button>
       </div>
       <input type="file" id="import-file" accept="application/json,.json" class="hidden">
-      <p id="backup-status" class="muted" aria-live="polite">Salva o ripristina agenda, spesa, stazioni e tratta in un file JSON.</p>
+      <p id="backup-status" class="muted" aria-live="polite">Salva o ripristina agenda, spesa, note, stazioni e tratte in un file JSON.</p>
       <div class="dialog-actions">
         <button type="button" id="btn-close-settings">Chiudi</button>
       </div>

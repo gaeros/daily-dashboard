@@ -799,6 +799,23 @@ $('#shopping-list').addEventListener('keydown', (e) => {
   $(`#shopping-list li[data-id="${li.dataset.id}"] .handle`)?.focus();
 });
 
+// ---------- Note rapide ----------
+// Blocco appunti libero: si salva da solo in locale poco dopo che smetti di
+// scrivere (non a ogni tasto). Rientra nel backup come le altre sezioni.
+const notesEl = $('#notes-text');
+notesEl.value = store.get('notes', '');
+
+let notesTimer;
+notesEl.addEventListener('input', () => {
+  $('#notes-status').textContent = 'Sto salvando…';
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(() => {
+    store.set('notes', notesEl.value);
+    $('#notes-status').textContent = 'Salvato';
+    setTimeout(() => { $('#notes-status').textContent = ''; }, 1500);
+  }, 500);
+});
+
 // ---------- Treni in tempo reale (ViaggiaTreno via proxy locale) ----------
 let stations = store.get('stations', []);
 let board = { station: null, type: 'partenze' };
@@ -1199,14 +1216,72 @@ $('#route-list').addEventListener('click', (e) => {
   }
 });
 
+// --- Riordino delle tratte preferite: stesso schema di agenda e spesa ---
+// Si trascina dal manico (Pointer Events: funziona anche su touch) oppure, da
+// tastiera, si sposta la tratta con le frecce su e giù. Qui basta riordinare i
+// blocchi (che contengono già i treni caricati) e salvare il nuovo ordine,
+// senza un nuovo render che farebbe ripartire le richieste.
+function applyRouteOrder() {
+  const order = [...$('#route-list').querySelectorAll('.route-item')].map((el) => +el.dataset.id);
+  routes.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  store.set('routes', routes);
+}
+
+let draggingRoute = null;
+
+$('#route-list').addEventListener('pointerdown', (e) => {
+  const handle = e.target.closest('.handle');
+  if (!handle) return;
+  e.preventDefault();
+  draggingRoute = handle.closest('.route-item');
+  draggingRoute.classList.add('dragging');
+  handle.setPointerCapture(e.pointerId);
+});
+
+$('#route-list').addEventListener('pointermove', (e) => {
+  if (!draggingRoute) return;
+  const list = $('#route-list');
+  const target = [...list.querySelectorAll('.route-item:not(.dragging)')]
+    .find((el) => e.clientY < el.getBoundingClientRect().top + el.offsetHeight / 2);
+  if (target) list.insertBefore(draggingRoute, target);
+  else list.appendChild(draggingRoute);
+});
+
+const endDragRoute = () => {
+  if (!draggingRoute) return;
+  draggingRoute.classList.remove('dragging');
+  draggingRoute = null;
+  applyRouteOrder();
+};
+$('#route-list').addEventListener('pointerup', endDragRoute);
+$('#route-list').addEventListener('pointercancel', endDragRoute);
+
+$('#route-list').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  const handle = e.target.closest('.handle');
+  if (!handle) return;
+  e.preventDefault();
+  const item = handle.closest('.route-item');
+  const sibling = e.key === 'ArrowUp' ? item.previousElementSibling : item.nextElementSibling;
+  if (!sibling) return;
+  item.parentNode.insertBefore(item, e.key === 'ArrowUp' ? sibling : sibling.nextElementSibling);
+  applyRouteOrder();
+  // Il focus segue la tratta spostata sul suo manico.
+  $(`#route-list .route-item[data-id="${item.dataset.id}"] .handle`)?.focus();
+});
+
 // Costruisce i blocchi-tratta (vuoti), poi avvia il caricamento di ciascuno.
 function renderRoutes() {
   $('#route-hint').classList.toggle('hidden', routes.length > 0);
   $('#route-when').classList.toggle('hidden', routes.length === 0);
+  // Il manico di riordino compare solo se c'è più di una tratta da ordinare.
+  const showHandle = routes.length > 1;
   $('#route-list').innerHTML = routes.map((r) => `
     <div class="route-item" data-id="${r.id}">
       <div class="board-header">
-        <strong>${escapeHtml(r.from.name)} → ${escapeHtml(r.to.name)}</strong>
+        <strong class="route-title">${showHandle
+          ? `<button type="button" class="handle" aria-label="Riordina la tratta ${escapeHtml(r.from.name)} ${escapeHtml(r.to.name)}. Trascina, o usa le frecce su e giù"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button>`
+          : ''}${escapeHtml(r.from.name)} → ${escapeHtml(r.to.name)}</strong>
         <div class="board-tabs">
           <button type="button" class="tab" data-act="swap" aria-label="Inverti la direzione"><i class="fa-solid fa-right-left" aria-hidden="true"></i></button>
           <button type="button" class="tab" data-act="refresh" aria-label="Aggiorna la tratta"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
@@ -1273,6 +1348,28 @@ function renderRouteOne(r) {
     : ''} · Aggiornato alle ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</p>`;
 }
 
+// Un consiglio pratico in base al meteo di oggi: si sceglie la cosa più
+// rilevante (prima la pioggia, poi il freddo/caldo percepito, poi UV e vento)
+// così resta una riga sola. Usa i dati meteo già scaricati.
+function weatherAdvice() {
+  if (!weatherData) return null;
+  const d = weatherData.daily;
+  const c = weatherData.current;
+  const rain = d.precipitation_probability_max[0] ?? 0;
+  const tMax = d.temperature_2m_max[0];
+  const uv = d.uv_index_max[0];
+  const wind = d.wind_speed_10m_max[0];
+  const feels = c ? c.apparent_temperature : null;
+
+  if (rain >= 50) return `${fa('fa-umbrella wi-rain')} Pioggia probabile (${rain}%): porta l'ombrello.`;
+  if (feels != null && feels <= 3) return `${fa('fa-temperature-low wi-snow')} Fa freddo, percepiti ${Math.round(feels)}°: copriti bene.`;
+  if (tMax >= 30) return `${fa('fa-temperature-high wi-bolt')} Caldo intenso (fino a ${Math.round(tMax)}°): bevi spesso e cerca l'ombra.`;
+  if (uv >= 6) return `${fa('fa-sun wi-sun')} UV alto (indice ${Math.round(uv)}): metti la crema solare.`;
+  if (wind >= 40) return `${fa('fa-wind wi-cloud')} Vento forte (fino a ${Math.round(wind)} km/h): attenzione fuori.`;
+  if (rain >= 30) return `${fa('fa-cloud-rain wi-rain')} Possibili rovesci (${rain}%): tieni l'ombrello a portata.`;
+  return null;
+}
+
 // ---------- Riepilogo mattutino ----------
 // Tra le 6 e le 10 l'app dà il buongiorno: meteo di oggi, primo impegno,
 // primo treno della tratta preferita. Chiudibile per il resto della giornata.
@@ -1293,6 +1390,8 @@ function renderMorning(force = false) {
     lines.push(`${icon} Oggi ${label.toLowerCase()}, ${Math.round(d.temperature_2m_min[0])}°–${Math.round(d.temperature_2m_max[0])}°`
       + (rain >= 20 ? ` · ${fa('fa-umbrella wi-rain')} pioggia ${rain}%` : ''));
   }
+  const advice = weatherAdvice();
+  if (advice) lines.push(advice);
   const todayISO = toISO(now);
   const first = todos
     .filter((t) => !t.done && t.due === todayISO)
@@ -1493,7 +1592,7 @@ setInterval(checkDeadlines, 30_000);
 // ---------- Backup: export / import dei dati ----------
 // Tutto vive nel localStorage: questo è l'unico modo per non perderlo cambiando
 // dispositivo o pulendo il browser. Si esportano i dati, non lo stato volatile.
-const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'notifyEnabled', 'todoView', 'theme'];
+const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'notifyEnabled', 'todoView', 'theme', 'notes'];
 
 $('#btn-export').addEventListener('click', () => {
   const data = { app: 'daily-dashboard', version: 1, exported: new Date().toISOString() };

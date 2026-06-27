@@ -333,6 +333,20 @@ dialog form { display: grid; }
 .city-results { margin-bottom: 8px; }
 .city-results li { padding: 2px 6px; }
 
+/* Note rapide: blocco appunti libero */
+.notes-text {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
 /* Suggerimenti lista della spesa */
 .suggestions {
   display: flex;
@@ -538,6 +552,20 @@ li.active-station { outline: 2px solid var(--accent); }
   margin-top: 8px;
 }
 .route-item .board-header { margin-bottom: 6px; }
+/* Titolo tratta con manico di riordino accanto */
+.route-title { display: inline-flex; align-items: center; gap: 4px; }
+.route-item .handle {
+  background: transparent;
+  color: var(--muted);
+  padding: 2px 4px;
+  font-size: 1rem;
+  cursor: grab;
+  touch-action: none; /* il trascinamento non scrolla la pagina su touch */
+}
+.route-item.dragging {
+  opacity: .75;
+  outline: 2px dashed var(--accent);
+}
 
 /* Notizie: niente riquadri, voci separate da righe sottili come un quotidiano.
    Il verde è il colore della sezione: icona, tab attiva e titoli. */
