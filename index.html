@@ -39,9 +39,9 @@
     </section>
 
     <!-- Meteo -->
-    <section class="card">
+    <section class="card" data-widget="meteo">
       <div class="card-header">
-        <h2><i class="fa-solid fa-cloud-sun wi-cloud" aria-hidden="true"></i> Meteo</h2>
+        <h2><button type="button" class="widget-handle" aria-label="Riordina il widget Meteo. Trascina, o usa le frecce su e giù"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button> <i class="fa-solid fa-cloud-sun wi-cloud" aria-hidden="true"></i> Meteo</h2>
         <span id="weather-city" class="muted"></span>
       </div>
       <div id="weather-current" class="weather-current">
@@ -53,9 +53,9 @@
     </section>
 
     <!-- Agenda -->
-    <section class="card">
+    <section class="card" data-widget="agenda">
       <div class="card-header">
-        <h2><i class="fa-solid fa-list-check" aria-hidden="true"></i> Agenda</h2>
+        <h2><button type="button" class="widget-handle" aria-label="Riordina il widget Agenda. Trascina, o usa le frecce su e giù"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button> <i class="fa-solid fa-list-check" aria-hidden="true"></i> Agenda</h2>
         <div class="todo-head-side">
           <span id="todo-counter" class="muted"></span>
           <button type="button" id="todo-sort" class="icon-btn" aria-label="Ordina per scadenza e priorità" title="Ordina per scadenza"><i class="fa-solid fa-arrow-down-wide-short" aria-hidden="true"></i></button>
@@ -113,9 +113,9 @@
     </section>
 
     <!-- Lista della spesa -->
-    <section class="card">
+    <section class="card" data-widget="shopping">
       <div class="card-header">
-        <h2><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i> Lista della spesa</h2>
+        <h2><button type="button" class="widget-handle" aria-label="Riordina il widget Lista della spesa. Trascina, o usa le frecce su e giù"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button> <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i> Lista della spesa</h2>
         <span id="shopping-counter" class="muted"></span>
       </div>
       <form id="shopping-form">
@@ -132,9 +132,9 @@
     </section>
 
     <!-- Note rapide -->
-    <section class="card">
+    <section class="card" data-widget="notes">
       <div class="card-header">
-        <h2><i class="fa-solid fa-note-sticky wi-sun" aria-hidden="true"></i> Note rapide</h2>
+        <h2><button type="button" class="widget-handle" aria-label="Riordina il widget Note rapide. Trascina, o usa le frecce su e giù"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button> <i class="fa-solid fa-note-sticky wi-sun" aria-hidden="true"></i> Note rapide</h2>
         <span id="notes-status" class="muted" aria-live="polite"></span>
       </div>
       <label class="sr-only" for="notes-text">Note libere</label>
@@ -142,11 +142,15 @@
     </section>
 
     <!-- Treni -->
-    <section class="card section-trains">
+    <section class="card section-trains" data-widget="trains">
       <div class="card-header">
-        <h2><i class="fa-solid fa-train wi-train" aria-hidden="true"></i> Treni in tempo reale</h2>
-        <span class="muted wi-train">ViaggiaTreno</span>
+        <h2><button type="button" class="widget-handle" aria-label="Riordina il widget Treni. Trascina, o usa le frecce su e giù"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button> <i class="fa-solid fa-train wi-train" aria-hidden="true"></i> Treni in tempo reale</h2>
+        <span class="news-header-side">
+          <span class="muted wi-train">ViaggiaTreno</span>
+          <button type="button" id="trains-toggle" class="icon-btn" aria-expanded="true" aria-controls="trains-body" aria-label="Comprimi i treni"><i class="fa-solid fa-chevron-up" aria-hidden="true"></i></button>
+        </span>
       </div>
+      <div id="trains-body">
       <form id="station-form">
         <label class="sr-only" for="station-input">Cerca una stazione</label>
         <input type="text" id="station-input" placeholder="Cerca una stazione (es. Milano Centrale)" maxlength="60" autocomplete="off">
@@ -220,12 +224,13 @@
         <button type="button" id="route-now" class="tab">Adesso</button>
       </form>
       <div id="route-list" aria-live="polite"></div>
+      </div>
     </section>
 
     <!-- Notizie -->
-    <section class="card">
+    <section class="card" data-widget="news">
       <div class="card-header">
-        <h2><i class="fa-solid fa-newspaper wi-news" aria-hidden="true"></i> Ultime notizie</h2>
+        <h2><button type="button" class="widget-handle" aria-label="Riordina il widget Notizie. Trascina, o usa le frecce su e giù"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button> <i class="fa-solid fa-newspaper wi-news" aria-hidden="true"></i> Ultime notizie</h2>
         <span class="news-header-side">
           <label class="sr-only" for="news-source">Fonte delle notizie</label>
           <select id="news-source" class="news-source wi-news" aria-label="Fonte delle notizie">

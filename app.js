@@ -820,6 +820,24 @@ notesEl.addEventListener('input', () => {
 let stations = store.get('stations', []);
 let board = { station: null, type: 'partenze' };
 
+// --- Comprimi/espandi l'intero widget treni, come per le notizie ---
+let trainsCollapsed = store.get('trainsCollapsed', false);
+
+function applyTrainsCollapsed() {
+  $('#trains-body').classList.toggle('hidden', trainsCollapsed);
+  const btn = $('#trains-toggle');
+  btn.setAttribute('aria-expanded', !trainsCollapsed);
+  btn.setAttribute('aria-label', trainsCollapsed ? 'Espandi i treni' : 'Comprimi i treni');
+  btn.innerHTML = `<i class="fa-solid fa-chevron-${trainsCollapsed ? 'down' : 'up'}" aria-hidden="true"></i>`;
+}
+
+$('#trains-toggle').addEventListener('click', () => {
+  trainsCollapsed = !trainsCollapsed;
+  store.set('trainsCollapsed', trainsCollapsed);
+  applyTrainsCollapsed();
+  if (!trainsCollapsed) refreshTrains(); // riaprendo, aggiorna subito i dati
+});
+
 $('#station-form').addEventListener('submit', (e) => e.preventDefault());
 
 let stationTimer;
@@ -1592,7 +1610,7 @@ setInterval(checkDeadlines, 30_000);
 // ---------- Backup: export / import dei dati ----------
 // Tutto vive nel localStorage: questo è l'unico modo per non perderlo cambiando
 // dispositivo o pulendo il browser. Si esportano i dati, non lo stato volatile.
-const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'notifyEnabled', 'todoView', 'theme', 'notes'];
+const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'trainsCollapsed', 'notifyEnabled', 'todoView', 'theme', 'notes', 'widgetOrder'];
 
 $('#btn-export').addEventListener('click', () => {
   const data = { app: 'daily-dashboard', version: 1, exported: new Date().toISOString() };
@@ -1647,7 +1665,7 @@ $('#import-file').addEventListener('change', (e) => {
 const REFRESH_MS = 60_000;
 
 function refreshTrains() {
-  if (document.hidden) return;
+  if (document.hidden || trainsCollapsed) return; // niente richieste a widget chiuso
   if (board.station) loadBoard(true);
   if (currentTrain) loadTrain(true);
   if (routes.length) loadAllRoutes(true);
@@ -1661,12 +1679,85 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch((err) => console.warn('SW:', err));
 }
 
+// ---------- Riordino dei widget ----------
+// Le sezioni principali si riordinano trascinandole dal manico ⋮⋮
+// nell'intestazione (Pointer Events: funziona anche su touch) oppure con le
+// frecce su/giù da tastiera. L'ordine è salvato e rientra nel backup. I banner
+// in cima (Buongiorno, riepilogo) non hanno data-widget e restano fissi.
+const mainEl = document.querySelector('main');
+
+// Salva l'ordine visivo corrente come elenco di chiavi widget.
+function applyWidgetOrder() {
+  const order = [...mainEl.querySelectorAll('section[data-widget]')].map((s) => s.dataset.widget);
+  store.set('widgetOrder', order);
+}
+
+// All'avvio rimette i widget nell'ordine salvato, lasciando i banner dove sono.
+function restoreWidgetOrder() {
+  const order = store.get('widgetOrder', null);
+  if (!Array.isArray(order)) return;
+  order.forEach((key) => {
+    const el = mainEl.querySelector(`section[data-widget="${key}"]`);
+    if (el) mainEl.appendChild(el); // li riaccoda nell'ordine salvato
+  });
+}
+
+let draggingWidget = null;
+
+mainEl.addEventListener('pointerdown', (e) => {
+  const handle = e.target.closest('.widget-handle');
+  if (!handle) return;
+  e.preventDefault();
+  draggingWidget = handle.closest('section[data-widget]');
+  draggingWidget.classList.add('dragging');
+  handle.setPointerCapture(e.pointerId);
+});
+
+mainEl.addEventListener('pointermove', (e) => {
+  if (!draggingWidget) return;
+  // Si inserisce prima del primo widget il cui centro è sotto il puntatore.
+  const target = [...mainEl.querySelectorAll('section[data-widget]:not(.dragging)')]
+    .find((s) => e.clientY < s.getBoundingClientRect().top + s.offsetHeight / 2);
+  if (target) mainEl.insertBefore(draggingWidget, target);
+  else mainEl.appendChild(draggingWidget);
+});
+
+const endDragWidget = () => {
+  if (!draggingWidget) return;
+  draggingWidget.classList.remove('dragging');
+  draggingWidget = null;
+  applyWidgetOrder();
+};
+mainEl.addEventListener('pointerup', endDragWidget);
+mainEl.addEventListener('pointercancel', endDragWidget);
+
+mainEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  const handle = e.target.closest('.widget-handle');
+  if (!handle) return;
+  e.preventDefault();
+  const section = handle.closest('section[data-widget]');
+  // Cerca il fratello precedente/successivo che sia anch'esso un widget
+  // (così non si scavalca mai i banner in cima).
+  let sib = e.key === 'ArrowUp' ? section.previousElementSibling : section.nextElementSibling;
+  while (sib && !sib.matches('section[data-widget]')) {
+    sib = e.key === 'ArrowUp' ? sib.previousElementSibling : sib.nextElementSibling;
+  }
+  if (!sib) return;
+  mainEl.insertBefore(section, e.key === 'ArrowUp' ? sib : sib.nextElementSibling);
+  applyWidgetOrder();
+  // Il render non ricrea i widget: il focus resta sul manico spostato.
+  section.querySelector('.widget-handle')?.focus();
+});
+
 // ---------- Avvio ----------
+restoreWidgetOrder();
 renderTodos();
 renderShopping();
 renderStations();
 renderRoutes();
-loadAllRoutes();
+applyTrainsCollapsed();
+if (!trainsCollapsed) loadAllRoutes();
 updateNotifUI();
 checkDeadlines();
 loadWeather();

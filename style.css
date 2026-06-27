@@ -97,6 +97,24 @@ main {
 }
 
 .card h2 { margin: 0; font-size: 1.1rem; }
+
+/* Manico per riordinare l'intero widget (nell'intestazione della card) */
+.widget-handle {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 0;
+  margin-right: 4px;
+  font-size: 1rem;
+  font-weight: 400;
+  cursor: grab;
+  touch-action: none; /* il trascinamento non scrolla la pagina su touch */
+}
+.widget-handle:hover { filter: none; color: var(--text); }
+.card.dragging {
+  opacity: .7;
+  outline: 2px dashed var(--accent);
+}
 .muted { color: var(--muted); font-size: .85rem; }
 .hidden { display: none !important; }
 
@@ -580,7 +598,7 @@ li.active-station { outline: 2px solid var(--accent); }
 
 .news-header-side { display: flex; align-items: center; gap: 8px; }
 .news-source { font-size: .85rem; padding: 4px 6px; max-width: 11rem; }
-#news-toggle { font-size: 1rem; padding: 2px 6px; color: var(--muted); }
+#news-toggle, #trains-toggle { font-size: 1rem; padding: 2px 6px; color: var(--muted); }
 .news-tabs { flex-wrap: wrap; margin-bottom: 10px; }
 .news-tabs .tab.active {
   background: var(--green);
