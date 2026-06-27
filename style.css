@@ -71,6 +71,7 @@ header {
 }
 
 header h1 { margin: 0; font-size: 1.5rem; }
+header h1 i { color: var(--accent); }
 header p { margin: 2px 0 0; color: var(--muted); text-transform: capitalize; }
 
 main {
