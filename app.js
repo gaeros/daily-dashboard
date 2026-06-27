@@ -306,6 +306,41 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
   if (store.get('theme', 'auto') === 'auto') applyTheme('auto');
 });
 
+// ---------- Accessibilità: dimensione testo e alto contrasto ----------
+function applyTextSize(size) {
+  if (size === 'normal') document.documentElement.removeAttribute('data-textsize');
+  else document.documentElement.setAttribute('data-textsize', size);
+  document.querySelectorAll('.textsize-btn').forEach((btn) => {
+    const active = btn.dataset.size === size;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active);
+  });
+}
+let textSize = store.get('textSize', 'normal');
+applyTextSize(textSize);
+document.querySelectorAll('.textsize-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    textSize = btn.dataset.size;
+    store.set('textSize', textSize);
+    applyTextSize(textSize);
+  });
+});
+
+let highContrast = store.get('highContrast', false);
+function applyContrast() {
+  if (highContrast) document.documentElement.setAttribute('data-contrast', 'high');
+  else document.documentElement.removeAttribute('data-contrast');
+  const btn = $('#btn-contrast');
+  btn.setAttribute('aria-pressed', highContrast);
+  btn.innerHTML = `<i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i> ${highContrast ? 'Disattiva' : 'Attiva'} alto contrasto`;
+}
+applyContrast();
+$('#btn-contrast').addEventListener('click', () => {
+  highContrast = !highContrast;
+  store.set('highContrast', highContrast);
+  applyContrast();
+});
+
 // ---------- Ricerca città / geolocalizzazione ----------
 const settingsDialog = $('#settings-dialog');
 $('#btn-settings').addEventListener('click', () => settingsDialog.showModal());
@@ -1653,7 +1688,7 @@ setInterval(checkDeadlines, 30_000);
 // ---------- Backup: export / import dei dati ----------
 // Tutto vive nel localStorage: questo è l'unico modo per non perderlo cambiando
 // dispositivo o pulendo il browser. Si esportano i dati, non lo stato volatile.
-const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'board', 'currentTrain', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'trainsCollapsed', 'notifyEnabled', 'todoView', 'theme', 'notes', 'widgetOrder'];
+const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'board', 'currentTrain', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'trainsCollapsed', 'notifyEnabled', 'todoView', 'theme', 'textSize', 'highContrast', 'notes', 'widgetOrder'];
 
 $('#btn-export').addEventListener('click', () => {
   const data = { app: 'daily-dashboard', version: 1, exported: new Date().toISOString() };

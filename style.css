@@ -47,6 +47,21 @@
   color-scheme: light;
 }
 
+/* Accessibilità: dimensione testo (scala tutte le unità rem) */
+:root[data-textsize="large"] { font-size: 18px; }
+:root[data-textsize="xlarge"] { font-size: 20px; }
+
+/* Alto contrasto: testo secondario pieno, bordi marcati, niente ombre.
+   Posto dopo i temi così vince a parità di specificità, in chiaro e scuro. */
+:root[data-contrast="high"] {
+  --muted: var(--text);
+  --border: var(--text);
+  --shadow: none;
+}
+:root[data-contrast="high"] :focus-visible { outline-width: 4px; }
+.ally-hint { margin: 2px 0 4px; display: block; }
+.ally-contrast { margin-top: 8px; }
+
 * { box-sizing: border-box; }
 
 body {
