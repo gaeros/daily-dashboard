@@ -111,6 +111,7 @@ async function loadAirQuality() {
   } catch (err) {
     airData = null;
     $('#air-quality').classList.add('hidden');
+    applyTodayAirColor(); // niente dati aria: togli l'eventuale colore da "Oggi"
     console.error('Aria:', err);
   }
 }
@@ -155,6 +156,20 @@ function renderAirQuality(data) {
   box.className = `air-quality ${cls}`;
   box.innerHTML = `${fa('fa-wind')} Aria: <strong>${label}</strong> <span class="muted">(indice ${Math.round(aqi)})</span>`
     + (lvl ? ` · ${fa('fa-seedling')} Pollini ${POLLEN_LABELS[top.k]}: <strong>${lvl}</strong>` : '');
+  applyTodayAirColor();
+}
+
+// Colora il lato della casella "Oggi" col livello di qualità dell'aria corrente,
+// così segue gli stessi colori della striscia aria (verde…rosso). Senza dati
+// aria, nessuna classe: la casella usa il fallback muted definito nel CSS.
+const AQI_CLASSES = AQI_LEVELS.map(([, , cls]) => cls);
+function applyTodayAirColor() {
+  const today = document.querySelector('.forecast .day.today');
+  if (!today) return;
+  today.classList.remove(...AQI_CLASSES);
+  const aqi = airData && airData.current ? airData.current.european_aqi : null;
+  if (aqi == null) return;
+  today.classList.add(AQI_LEVELS.find(([max]) => aqi <= max)[2]);
 }
 
 function renderWeather(data) {
@@ -192,6 +207,7 @@ function renderWeather(data) {
     btn.addEventListener('click', () => toggleWeatherDetail(+btn.dataset.i));
   });
 
+  applyTodayAirColor(); // se i dati aria sono già pronti, colora subito "Oggi"
   renderSummary();
 }
 

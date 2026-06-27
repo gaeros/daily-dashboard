@@ -188,10 +188,10 @@ main {
 }
 .forecast .day:hover { border-color: var(--accent); filter: none; }
 .forecast .day.selected { border-color: var(--accent); background: var(--accent-soft); }
-/* La casella di oggi ha il lato sinistro giallo (lo stesso giallo dell'icona
-   dell'app), spesso 3px come la striscia della qualità dell'aria. Longhand
-   dopo .selected/.hover così resta visibile anche quando è selezionata. */
-.forecast .day.today { border-left: 3px solid #ffd54f; }
+/* La casella di oggi segue il colore della qualità dell'aria (vedi --aqi-color),
+   con lo stesso lato 3px della striscia aria. Dopo .selected/.hover così resta
+   visibile anche quando è selezionata; muted come fallback se l'aria manca. */
+.forecast .day.today { border-left: 3px solid var(--aqi-color, var(--muted)); }
 .forecast .day .d-icon { font-size: .98rem; display: block; margin: 1px 0; }
 .forecast .day .d-name { font-weight: 600; text-transform: capitalize; display: block; }
 .d-rain { color: var(--accent); font-size: .62rem; display: block; }
@@ -203,14 +203,15 @@ main {
   padding: 6px 10px;
   border-radius: 8px;
   background: var(--bg);
-  border-left: 3px solid var(--muted);
+  border-left: 3px solid var(--aqi-color, var(--muted));
 }
-.aqi-good { border-left-color: #2e9b4e; }
-.aqi-fair { border-left-color: #93b81e; }
-.aqi-moderate { border-left-color: #e8a13a; }
-.aqi-poor { border-left-color: #e8833a; }
-.aqi-vpoor { border-left-color: #d93025; }
-.aqi-extreme { border-left-color: #9c27b0; }
+/* Colore per livello, condiviso da striscia aria e casella "Oggi" del meteo */
+.aqi-good { --aqi-color: #2e9b4e; }
+.aqi-fair { --aqi-color: #93b81e; }
+.aqi-moderate { --aqi-color: #e8a13a; }
+.aqi-poor { --aqi-color: #e8833a; }
+.aqi-vpoor { --aqi-color: #d93025; }
+.aqi-extreme { --aqi-color: #9c27b0; }
 
 /* Dettaglio del giorno selezionato */
 .weather-detail {
