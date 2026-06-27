@@ -1138,6 +1138,15 @@ function renderSummary() {
 }
 
 // ---------- Utility ----------
+// Annuncia un messaggio agli screen reader tramite la live-region nascosta.
+// Si azzera prima di riscrivere: alcuni lettori non ri-annunciano testo uguale.
+function announce(msg) {
+  const el = $('#sr-announce');
+  if (!el) return;
+  el.textContent = '';
+  setTimeout(() => { el.textContent = msg; }, 30);
+}
+
 function toISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -1290,12 +1299,22 @@ $('#route-list').addEventListener('pointermove', (e) => {
 
 const endDragRoute = () => {
   if (!draggingRoute) return;
-  draggingRoute.classList.remove('dragging');
+  const moved = draggingRoute;
+  moved.classList.remove('dragging');
   draggingRoute = null;
   applyRouteOrder();
+  announceRouteMove(moved);
 };
 $('#route-list').addEventListener('pointerup', endDragRoute);
 $('#route-list').addEventListener('pointercancel', endDragRoute);
+
+// Annuncia agli screen reader la nuova posizione della tratta spostata.
+function announceRouteMove(item) {
+  const items = [...$('#route-list').querySelectorAll('.route-item')];
+  const pos = items.indexOf(item) + 1;
+  const title = item.querySelector('.route-title')?.textContent.trim() || 'Tratta';
+  announce(`Tratta ${title} spostata in posizione ${pos} di ${items.length}`);
+}
 
 $('#route-list').addEventListener('keydown', (e) => {
   if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
@@ -1309,6 +1328,7 @@ $('#route-list').addEventListener('keydown', (e) => {
   applyRouteOrder();
   // Il focus segue la tratta spostata sul suo manico.
   $(`#route-list .route-item[data-id="${item.dataset.id}"] .handle`)?.focus();
+  announceRouteMove(item);
 });
 
 // Costruisce i blocchi-tratta (vuoti), poi avvia il caricamento di ciascuno.
@@ -1747,12 +1767,22 @@ mainEl.addEventListener('pointermove', (e) => {
 
 const endDragWidget = () => {
   if (!draggingWidget) return;
-  draggingWidget.classList.remove('dragging');
+  const moved = draggingWidget;
+  moved.classList.remove('dragging');
   draggingWidget = null;
   applyWidgetOrder();
+  announceWidgetMove(moved);
 };
 mainEl.addEventListener('pointerup', endDragWidget);
 mainEl.addEventListener('pointercancel', endDragWidget);
+
+// Annuncia agli screen reader la nuova posizione del widget spostato.
+function announceWidgetMove(section) {
+  const items = [...mainEl.querySelectorAll('section[data-widget]')];
+  const pos = items.indexOf(section) + 1;
+  const title = section.querySelector('h2')?.textContent.trim() || 'Widget';
+  announce(`${title} spostato in posizione ${pos} di ${items.length}`);
+}
 
 mainEl.addEventListener('keydown', (e) => {
   if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
@@ -1771,6 +1801,7 @@ mainEl.addEventListener('keydown', (e) => {
   applyWidgetOrder();
   // Il render non ricrea i widget: il focus resta sul manico spostato.
   section.querySelector('.widget-handle')?.focus();
+  announceWidgetMove(section);
 });
 
 // ---------- Avvio ----------
