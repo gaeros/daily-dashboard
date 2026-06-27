@@ -43,7 +43,16 @@ const wc = (code) => {
 const fa = (name) => `<i class="fa-solid ${name}" aria-hidden="true"></i>`;
 
 const DEFAULT_CITY = { name: 'Roma', latitude: 41.894, longitude: 12.483 };
-let city = store.get('city', DEFAULT_CITY);
+// Elenco di località salvate, con migrazione dalla singola città delle versioni
+// precedenti. `city` è sempre la località attiva (cities[cityIndex]).
+let cities = store.get('cities', null);
+if (!Array.isArray(cities) || !cities.length) {
+  cities = [store.get('city', DEFAULT_CITY)];
+  store.set('cities', cities);
+}
+let cityIndex = store.get('cityIndex', 0);
+if (cityIndex < 0 || cityIndex >= cities.length) cityIndex = 0;
+let city = cities[cityIndex];
 let todayRainProb = null;
 let weatherData = null;
 let selectedDay = null;
@@ -389,14 +398,68 @@ $('#btn-geolocate').addEventListener('click', () => {
   );
 });
 
+// Aggiunge una località (da ricerca o geolocalizzazione) e la rende attiva;
+// se è già salvata (stesse coordinate) la seleziona soltanto.
 function setCity(newCity) {
-  city = newCity;
-  store.set('city', city);
+  const existing = cities.findIndex((c) =>
+    c.latitude === newCity.latitude && c.longitude === newCity.longitude);
+  if (existing >= 0) cityIndex = existing;
+  else { cities.push(newCity); cityIndex = cities.length - 1; }
+  persistCities();
   $('#city-results').innerHTML = '';
   $('#city-input').value = '';
   settingsDialog.close();
+  renderCityChips();
   loadWeather();
 }
+
+function selectCity(i) {
+  if (i === cityIndex || !cities[i]) return;
+  cityIndex = i;
+  persistCities();
+  renderCityChips();
+  loadWeather();
+}
+
+function removeCity(i) {
+  if (cities.length <= 1) return; // ne resta sempre almeno una
+  const wasActive = i === cityIndex;
+  cities.splice(i, 1);
+  if (i < cityIndex) cityIndex--;            // l'attiva si è spostata indietro
+  else if (cityIndex >= cities.length) cityIndex = cities.length - 1;
+  persistCities();
+  renderCityChips();
+  if (wasActive) loadWeather();
+}
+
+// Salva elenco, indice e località attiva (quest'ultima anche come 'city' per
+// compatibilità e accesso rapido).
+function persistCities() {
+  city = cities[cityIndex];
+  store.set('cities', cities);
+  store.set('cityIndex', cityIndex);
+  store.set('city', city);
+}
+
+// Chip delle località: mostrate solo con 2+ località (con una sola basta il
+// nome nell'intestazione del meteo).
+function renderCityChips() {
+  const box = $('#weather-locations');
+  if (cities.length <= 1) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  box.classList.remove('hidden');
+  box.innerHTML = cities.map((c, i) => `
+    <span class="loc-chip ${i === cityIndex ? 'active' : ''}">
+      <button type="button" class="loc-select" data-i="${i}" aria-pressed="${i === cityIndex}">${fa('fa-location-dot')} ${escapeHtml(c.name)}</button>
+      <button type="button" class="loc-del" data-i="${i}" aria-label="Rimuovi località ${escapeHtml(c.name)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </span>`).join('');
+}
+
+$('#weather-locations').addEventListener('click', (e) => {
+  const sel = e.target.closest('.loc-select');
+  const del = e.target.closest('.loc-del');
+  if (sel) selectCity(+sel.dataset.i);
+  else if (del) removeCity(+del.dataset.i);
+});
 
 // ---------- Agenda ----------
 let todos = store.get('todos', []);
@@ -1716,7 +1779,7 @@ setInterval(checkDeadlines, 30_000);
 // ---------- Backup: export / import dei dati ----------
 // Tutto vive nel localStorage: questo è l'unico modo per non perderlo cambiando
 // dispositivo o pulendo il browser. Si esportano i dati, non lo stato volatile.
-const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'board', 'currentTrain', 'city', 'newsFeed', 'newsSource', 'newsCollapsed', 'trainsCollapsed', 'notifyEnabled', 'todoView', 'theme', 'textSize', 'highContrast', 'notes', 'widgetOrder'];
+const EXPORT_KEYS = ['todos', 'shopping', 'shoppingHistory', 'stations', 'routes', 'board', 'currentTrain', 'city', 'cities', 'cityIndex', 'newsFeed', 'newsSource', 'newsCollapsed', 'trainsCollapsed', 'notifyEnabled', 'todoView', 'theme', 'textSize', 'highContrast', 'notes', 'widgetOrder'];
 
 $('#btn-export').addEventListener('click', () => {
   const data = { app: 'daily-dashboard', version: 1, exported: new Date().toISOString() };
@@ -1914,6 +1977,7 @@ if (!trainsCollapsed) {
 }
 updateNotifUI();
 checkDeadlines();
+renderCityChips();
 loadWeather();
 applyNewsCollapsed();
 if (!newsCollapsed) loadNews();

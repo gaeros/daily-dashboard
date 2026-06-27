@@ -399,6 +399,27 @@ dialog form { display: grid; }
   line-height: 1.5;
 }
 
+/* Località meteo: chip selezionabili sopra le previsioni */
+.locations { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.loc-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.loc-chip.active { border-color: var(--accent); background: var(--accent-soft); }
+.loc-select {
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+  font-size: .82rem;
+  padding: 4px 4px 4px 12px;
+}
+.loc-chip.active .loc-select { color: var(--accent); }
+.loc-del { background: transparent; color: var(--muted); font-size: .85rem; padding: 4px 10px 4px 4px; }
+.loc-del:hover { filter: none; color: var(--danger); }
+
 /* Quantità nella lista della spesa */
 .qty-badge { color: var(--muted); font-weight: 600; font-size: .8rem; }
 .qty-controls { display: flex; gap: 4px; flex: 0 0 auto; }
