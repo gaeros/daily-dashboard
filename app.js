@@ -741,7 +741,7 @@ function renderSuggestions() {
     btn.textContent = `+ ${h.name}`;
     btn.setAttribute('aria-label', `Aggiungi alla lista: ${h.name}`);
     btn.addEventListener('click', () => {
-      shopping.push({ id: Date.now(), text: h.name, taken: false });
+      shopping.push({ id: Date.now(), text: h.name, taken: false, qty: 1 });
       store.set('shopping', shopping);
       renderShopping();
     });
@@ -751,7 +751,7 @@ function renderSuggestions() {
 
 $('#shopping-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  shopping.push({ id: Date.now(), text: $('#shopping-text').value.trim(), taken: false });
+  shopping.push({ id: Date.now(), text: $('#shopping-text').value.trim(), taken: false, qty: 1 });
   store.set('shopping', shopping);
   e.target.reset();
   renderShopping();
@@ -761,13 +761,24 @@ function renderShopping() {
   // Gli articoli già presi scendono in fondo alla lista; l'ordine manuale
   // (trascinamento o frecce) è l'ordine dell'array, che il sort stabile conserva.
   const sorted = [...shopping].sort((a, b) => a.taken - b.taken);
-  $('#shopping-list').innerHTML = sorted.map((s) => `
+  $('#shopping-list').innerHTML = sorted.map((s) => {
+    const qty = s.qty || 1;
+    const badge = qty > 1 ? ` <span class="qty-badge">×${qty}</span>` : '';
+    // Controlli quantità solo sugli articoli ancora da prendere.
+    const qtyControls = s.taken ? '' : `
+      <div class="qty-controls">
+        <button type="button" class="qty-btn qty-dec" aria-label="Diminuisci quantità: ${escapeHtml(s.text)}"${qty <= 1 ? ' disabled' : ''}>−</button>
+        <button type="button" class="qty-btn qty-inc" aria-label="Aumenta quantità: ${escapeHtml(s.text)}">+</button>
+      </div>`;
+    return `
     <li class="${s.taken ? 'done' : ''}" data-id="${s.id}">
       ${s.taken ? '' : `<button type="button" class="handle" aria-label="Riordina: ${escapeHtml(s.text)}. Trascina, o usa le frecce su e giù"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button>`}
       <input type="checkbox" ${s.taken ? 'checked' : ''} aria-label="Segna come preso: ${escapeHtml(s.text)}">
-      <div class="grow">${escapeHtml(s.text)}</div>
+      <div class="grow">${escapeHtml(s.text)}${badge}</div>
+      ${qtyControls}
       <button class="del" aria-label="Elimina: ${escapeHtml(s.text)}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
-    </li>`).join('');
+    </li>`;
+  }).join('');
 
   const toBuy = shopping.filter((s) => !s.taken).length;
   $('#shopping-counter').textContent = shopping.length
@@ -787,6 +798,12 @@ $('#shopping-list').addEventListener('click', (e) => {
     // Lo storico conta ogni articolo una sola volta, e si corregge se togli la spunta.
     if (item.taken && !item.counted) { recordPurchase(item.text, +1); item.counted = true; }
     else if (!item.taken && item.counted) { recordPurchase(item.text, -1); item.counted = false; }
+  } else if (e.target.closest('.qty-dec')) {
+    const item = shopping.find((s) => s.id === id);
+    item.qty = Math.max(1, (item.qty || 1) - 1);
+  } else if (e.target.closest('.qty-inc')) {
+    const item = shopping.find((s) => s.id === id);
+    item.qty = (item.qty || 1) + 1;
   } else if (e.target.closest('.del')) {
     shopping = shopping.filter((s) => s.id !== id);
   } else return;

@@ -399,6 +399,21 @@ dialog form { display: grid; }
   line-height: 1.5;
 }
 
+/* Quantità nella lista della spesa */
+.qty-badge { color: var(--muted); font-weight: 600; font-size: .8rem; }
+.qty-controls { display: flex; gap: 4px; flex: 0 0 auto; }
+.qty-btn {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+.qty-btn:disabled { opacity: .4; cursor: default; filter: none; }
+
 /* Suggerimenti lista della spesa */
 .suggestions {
   display: flex;
